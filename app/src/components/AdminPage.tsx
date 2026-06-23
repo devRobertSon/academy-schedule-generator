@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import {
+  COURSE_TYPES,
   Course,
   CourseType,
   Grade,
@@ -18,7 +19,7 @@ import {
 } from '../lib/store';
 
 const SUBJECTS: Subject[] = ['수학', '과학', '면접'];
-const TYPES: CourseType[] = ['특화', '면접', '통합과학', '교과'];
+const TRACK_OPTIONS: (Track | '공통')[] = [...TRACKS, '공통'];
 const DAYS: Weekday[] = ['월', '화', '수', '목', '금', '토', '일'];
 const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
 
@@ -69,7 +70,7 @@ export default function AdminPage({ store, onChange }: Props) {
       name: '새 과정',
       track: '영재학교',
       subject: '수학',
-      type: '특화',
+      type: '영재학교입시',
       start: { grade: '중1', month: 3 },
       end: { grade: '중1', month: 8 },
       schedule: [{ day: '월', start: '17:00', end: '19:00' }],
@@ -100,8 +101,6 @@ export default function AdminPage({ store, onChange }: Props) {
 
   const gyo = store.gyo;
   const setGyo = (patch: Partial<typeof gyo>) => onChange({ ...store, gyo: { ...gyo, ...patch } });
-  const mathSlot = gyo.mathSlots[0] ?? { day: '수', start: '16:00', end: '18:00' };
-  const sciSlot = gyo.sciSlots[0] ?? { day: '금', start: '16:00', end: '18:00' };
 
   return (
     <div className="admin">
@@ -151,8 +150,8 @@ export default function AdminPage({ store, onChange }: Props) {
                     <input value={c.name} onChange={(e) => updateCourse(c.id, { name: e.target.value })} />
                   </td>
                   <td>
-                    <select value={c.track} onChange={(e) => updateCourse(c.id, { track: e.target.value as Track })}>
-                      {TRACKS.map((t) => (
+                    <select value={c.track} onChange={(e) => updateCourse(c.id, { track: e.target.value as Track | '공통' })}>
+                      {TRACK_OPTIONS.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -170,7 +169,7 @@ export default function AdminPage({ store, onChange }: Props) {
                   </td>
                   <td>
                     <select value={c.type} onChange={(e) => updateCourse(c.id, { type: e.target.value as CourseType })}>
-                      {TYPES.map((t) => (
+                      {COURSE_TYPES.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -257,37 +256,16 @@ export default function AdminPage({ store, onChange }: Props) {
         </table>
       </div>
 
-      <h3>교과(공통) 기본 설정</h3>
+      <h3>교과 진도 투영 속도</h3>
+      <p className="muted">
+        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵에서 단원 진도를
+        몇 개월 간격으로 펼쳐 보여줄지 설정합니다.
+      </p>
       <div className="gyo-config">
         <fieldset>
-          <legend>수학 교과</legend>
+          <legend>투영 속도(개월/단원)</legend>
           <label>
-            담당쌤
-            <input value={gyo.mathTeacher ?? ''} onChange={(e) => setGyo({ mathTeacher: e.target.value })} />
-          </label>
-          <label>
-            요일
-            <select
-              value={mathSlot.day}
-              onChange={(e) => setGyo({ mathSlots: [{ ...mathSlot, day: e.target.value as Weekday }] })}
-            >
-              {DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            시작
-            <input type="time" value={mathSlot.start} onChange={(e) => setGyo({ mathSlots: [{ ...mathSlot, start: e.target.value }] })} />
-          </label>
-          <label>
-            종료
-            <input type="time" value={mathSlot.end} onChange={(e) => setGyo({ mathSlots: [{ ...mathSlot, end: e.target.value }] })} />
-          </label>
-          <label>
-            진행속도(개월/단원)
+            수학
             <input
               type="number"
               min={1}
@@ -295,36 +273,8 @@ export default function AdminPage({ store, onChange }: Props) {
               onChange={(e) => setGyo({ mathMonthsPerItem: Math.max(1, Number(e.target.value)) })}
             />
           </label>
-        </fieldset>
-        <fieldset>
-          <legend>과학 교과</legend>
           <label>
-            담당쌤
-            <input value={gyo.sciTeacher ?? ''} onChange={(e) => setGyo({ sciTeacher: e.target.value })} />
-          </label>
-          <label>
-            요일
-            <select
-              value={sciSlot.day}
-              onChange={(e) => setGyo({ sciSlots: [{ ...sciSlot, day: e.target.value as Weekday }] })}
-            >
-              {DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            시작
-            <input type="time" value={sciSlot.start} onChange={(e) => setGyo({ sciSlots: [{ ...sciSlot, start: e.target.value }] })} />
-          </label>
-          <label>
-            종료
-            <input type="time" value={sciSlot.end} onChange={(e) => setGyo({ sciSlots: [{ ...sciSlot, end: e.target.value }] })} />
-          </label>
-          <label>
-            진행속도(개월/단원)
+            과학
             <input
               type="number"
               min={1}

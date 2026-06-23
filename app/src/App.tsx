@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ConsultForm, { ConsultInfo } from './components/ConsultForm';
 import RemainingRoadmap from './components/RemainingRoadmap';
-import MonthlyTimetable, { GyoBlocks } from './components/MonthlyTimetable';
+import MonthlyTimetable from './components/MonthlyTimetable';
 import AdminPage from './components/AdminPage';
 import ExportBar from './components/ExportBar';
 import {
@@ -38,10 +38,6 @@ export default function App() {
   const [track, setTrack] = useState<Track>('영재학교');
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
-  const [gyoBlocks, setGyoBlocks] = useState<GyoBlocks>(() => ({
-    math: store.gyo.mathSlots.map((s) => ({ ...s })),
-    sci: store.gyo.sciSlots.map((s) => ({ ...s })),
-  }));
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
   const [viewIdx, setViewIdx] = useState<number>(atIdx);
@@ -151,16 +147,13 @@ export default function App() {
               </p>
               <MonthlyTimetable
                 courses={store.courses}
-                gyo={store.gyo}
                 track={track}
                 atIdx={atIdx}
                 viewIdx={viewIdx}
                 onViewIdxChange={setViewIdx}
                 shifts={shifts}
                 slotOverrides={slotOverrides}
-                onSlotOverrideChange={(id, slot) => setSlotOverrides((s) => ({ ...s, [id]: slot }))}
-                gyoBlocks={gyoBlocks}
-                onGyoBlocksChange={setGyoBlocks}
+                onSlotOverrideChange={(key, slot) => setSlotOverrides((s) => ({ ...s, [key]: slot }))}
               />
             </section>
           </div>
