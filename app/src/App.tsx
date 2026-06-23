@@ -1,97 +1,175 @@
-import { useMemo, useRef, useState } from 'react';
-import InputForm, { FormState } from './components/InputForm';
-import RoadmapChart from './components/RoadmapChart';
-import TimetableBuilder, { GyoBlocks } from './components/TimetableBuilder';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import ConsultForm, { ConsultInfo } from './components/ConsultForm';
+import RemainingRoadmap from './components/RemainingRoadmap';
+import MonthlyTimetable, { GyoBlocks } from './components/MonthlyTimetable';
+import AdminPage from './components/AdminPage';
 import ExportBar from './components/ExportBar';
 import {
-  GYO_DEFAULT_BLOCKS,
   MATH_GYO_SEQUENCE,
   SCI_GYO_HS_PARALLEL,
   SCI_GYO_MID_SEQUENCE,
+  TimeSlot,
   Track,
+  TRACKS,
 } from './data/roadmap';
-import { nowIndex } from './lib/logic';
+import { nowIndex, remainingCourses } from './lib/logic';
+import { StoreData, loadStore, saveStore } from './lib/store';
 
-const DEFAULT_FORM: FormState = {
-  grade: '중2',
-  month: 9,
-  mathIdx: 4, // 중3-1학기
+type Page = 'consult' | 'admin';
+
+const DEFAULT_CONSULT: ConsultInfo = {
+  studentName: '',
+  grade: '중1',
+  month: 6,
+  mathIdx: MATH_GYO_SEQUENCE.indexOf('중3-2학기'),
   sciMode: 'mid',
-  sciIdx: 4,
+  sciIdx: SCI_GYO_MID_SEQUENCE.indexOf('중2-2학기'),
 };
 
 export default function App() {
-  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
-  const [activeTrack, setActiveTrack] = useState<Track>('영재학교');
-  const [gyoBlocks, setGyoBlocks] = useState<GyoBlocks>({
-    math: [...GYO_DEFAULT_BLOCKS.math],
-    sci: [...GYO_DEFAULT_BLOCKS.sci],
-  });
+  const [page, setPage] = useState<Page>('consult');
+  const [store, setStoreState] = useState<StoreData>(() => loadStore());
+  const setStore = (next: StoreData) => {
+    setStoreState(next);
+    saveStore(next);
+  };
 
-  const atIdx = useMemo(() => nowIndex(form.grade, form.month), [form.grade, form.month]);
+  const [info, setInfo] = useState<ConsultInfo>(DEFAULT_CONSULT);
+  const [track, setTrack] = useState<Track>('영재학교');
+  const [shifts, setShifts] = useState<Record<string, number>>({});
+  const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
+  const [gyoBlocks, setGyoBlocks] = useState<GyoBlocks>(() => ({
+    math: store.gyo.mathSlots.map((s) => ({ ...s })),
+    sci: store.gyo.sciSlots.map((s) => ({ ...s })),
+  }));
+
+  const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
+  const [viewIdx, setViewIdx] = useState<number>(atIdx);
+
+  // 상담 월이 바뀌면 보는 달이 과거가 되지 않도록 클램프
+  useEffect(() => {
+    setViewIdx((v) => Math.min(59, Math.max(atIdx, v)));
+  }, [atIdx]);
+
   const exportRef = useRef<HTMLDivElement>(null);
 
-  const mathProgress = MATH_GYO_SEQUENCE[form.mathIdx];
-  const sciSeq = form.sciMode === 'mid' ? SCI_GYO_MID_SEQUENCE : SCI_GYO_HS_PARALLEL;
-  const sciProgress = sciSeq[form.sciIdx];
+  const mathProgress = MATH_GYO_SEQUENCE[info.mathIdx];
+  const sciSeq = info.sciMode === 'mid' ? SCI_GYO_MID_SEQUENCE : SCI_GYO_HS_PARALLEL;
+  const sciProgress = sciSeq[info.sciIdx];
   const today = new Date().toLocaleDateString('ko-KR');
+
+  const remaining = remainingCourses(store.courses, track, atIdx, shifts);
 
   return (
     <div className="app">
       <header className="app-header no-print">
-        <h1>알파학원 입시 로드맵 · 시간표 생성기</h1>
+        <div className="brand">
+          <h1>알파학원 입시 상담 로드맵</h1>
+          <nav className="page-nav">
+            <button className={page === 'consult' ? 'active' : ''} onClick={() => setPage('consult')}>
+              상담
+            </button>
+            <button className={page === 'admin' ? 'active' : ''} onClick={() => setPage('admin')}>
+              관리
+            </button>
+          </nav>
+        </div>
         <p>
-          현재 학년·월·진도만 입력하면 5개 학교(영재학교·과학고·국제고·외고·전사고)의 특화 과정
-          로드맵과 주간 시간표를 자동 생성합니다.
+          {page === 'consult'
+            ? '학생의 현재 학년·월·진도를 입력하면, 목표 학교 합격까지 남은 과목과 월별 시간표를 만들어 학부모님께 전달할 수 있습니다.'
+            : '과정의 개설 월·기간·요일·시작시간·담당 선생님을 편집합니다. (브라우저 자동 저장 · JSON 백업 가능)'}
         </p>
       </header>
 
-      <section className="card no-print">
-        <h2>입력</h2>
-        <InputForm value={form} onChange={setForm} />
-      </section>
-
-      <ExportBar targetRef={exportRef} />
-
-      {/* 내보내기 대상 영역(로드맵 + 시간표) */}
-      <div className="export-region" ref={exportRef}>
-        <div className="export-summary">
-          <h2>입시 로드맵 · 주간 시간표</h2>
-          <p>
-            학년 <b>{form.grade}</b> · 현재 <b>{form.month}월</b> · 수학 진도{' '}
-            <b>{mathProgress}</b> · 과학 진도 <b>{sciProgress}</b>
-            <span className="gen-date"> · 생성일 {today}</span>
-          </p>
-        </div>
-
+      {page === 'admin' ? (
         <section className="card">
-          <h2>① 5개 학교 특화 과정 로드맵 (월별)</h2>
-          <div className="roadmap-scroll">
-            <RoadmapChart form={form} atIdx={atIdx} />
+          <AdminPage store={store} onChange={setStore} />
+        </section>
+      ) : (
+        <>
+          <section className="card no-print">
+            <h2>상담 정보</h2>
+            <ConsultForm value={info} onChange={setInfo} />
+            <div className="track-tabs" role="tablist" style={{ marginTop: 12 }}>
+              <span className="tabs-label">목표 학교</span>
+              {TRACKS.map((t) => (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={t === track}
+                  className={`track-tab ${t === track ? 'active' : ''}`}
+                  onClick={() => setTrack(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <ExportBar targetRef={exportRef} />
+
+          <div className="export-region" ref={exportRef}>
+            <div className="export-summary">
+              <h2>
+                {info.studentName ? `${info.studentName} 학생 · ` : ''}
+                {track} 준비 로드맵
+              </h2>
+              <p>
+                현재{' '}
+                <b>
+                  {info.grade} {info.month}월
+                </b>{' '}
+                · 수학 진도 <b>{mathProgress}</b> 완료 · 과학 진도 <b>{sciProgress}</b> 완료
+                <span className="gen-date"> · 상담일 {today}</span>
+              </p>
+            </div>
+
+            <section className="card">
+              <h2>
+                ① {track} 합격까지 남은 과목 ({remaining.length}개)
+              </h2>
+              <p className="muted no-print">
+                막대를 좌우로 드래그하면 수강 시작 월을 옮길 수 있고, 월별 시간표에 바로 반영됩니다.
+              </p>
+              <div className="roadmap-scroll">
+                <RemainingRoadmap
+                  courses={store.courses}
+                  gyo={store.gyo}
+                  form={info}
+                  track={track}
+                  atIdx={atIdx}
+                  shifts={shifts}
+                  onShiftChange={(id, shift) => setShifts((s) => ({ ...s, [id]: shift }))}
+                />
+              </div>
+            </section>
+
+            <section className="card">
+              <h2>② 월별 시간표</h2>
+              <p className="muted no-print">
+                ◀ ▶로 달을 바꿔 매월 시간표를 확인하고, 블록을 드래그해 요일·시간을 조정하세요.
+              </p>
+              <MonthlyTimetable
+                courses={store.courses}
+                gyo={store.gyo}
+                track={track}
+                atIdx={atIdx}
+                viewIdx={viewIdx}
+                onViewIdxChange={setViewIdx}
+                shifts={shifts}
+                slotOverrides={slotOverrides}
+                onSlotOverrideChange={(id, slot) => setSlotOverrides((s) => ({ ...s, [id]: slot }))}
+                gyoBlocks={gyoBlocks}
+                onGyoBlocksChange={setGyoBlocks}
+              />
+            </section>
           </div>
-        </section>
 
-        <section className="card">
-          <h2>② 주간 시간표 빌더 — {activeTrack}</h2>
-          <p className="muted no-print">
-            학교 탭을 바꾸면 특화(고정) 수업이 달라지고, 교과 2과목은 드래그로 자유 배치할 수
-            있습니다. (교과 배치는 탭을 바꿔도 유지)
-          </p>
-          <TimetableBuilder
-            atIdx={atIdx}
-            activeTrack={activeTrack}
-            onTrackChange={setActiveTrack}
-            gyoBlocks={gyoBlocks}
-            onGyoBlocksChange={setGyoBlocks}
-          />
-        </section>
-      </div>
-
-      <footer className="app-footer no-print">
-        <small>
-          특화/면접/통합과학 = 고정 일정 · 교과 = 드래그로 이동 가능 · 결과는 5개 학교 전부 출력
-        </small>
-      </footer>
+          <footer className="app-footer no-print">
+            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정 내용은 [관리] 탭에서 수정</small>
+          </footer>
+        </>
+      )}
     </div>
   );
 }

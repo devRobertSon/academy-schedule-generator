@@ -1,14 +1,5 @@
-// src/lib/logic.ts
-import {
-  Course,
-  Grade,
-  Subject,
-  TimeSlot,
-  Track,
-  TRACKS,
-  TRACK_COURSES,
-  gmIndex,
-} from '../data/roadmap';
+// src/lib/logic.ts — 상담 도구 로직(목표 학교의 남은 과목 + 월별 시간표)
+import { Course, Grade, Subject, TimeSlot, Track, gmIndex } from '../data/roadmap';
 
 export type Status = '완료' | '진행중' | '예정';
 
@@ -17,30 +8,53 @@ export function nowIndex(grade: Grade, month: number): number {
   return gmIndex(grade, month);
 }
 
-/** gmIndex(start)..gmIndex(end) 기준 완료/진행중/예정 */
-export function courseStatus(course: Course, atIdx: number): Status {
-  const startIdx = gmIndex(course.start.grade, course.start.month);
-  const endIdx = gmIndex(course.end.grade, course.end.month);
+/** 학생 맞춤 이동(shift)을 반영한 과정 구간(월 인덱스) */
+export function shiftedRange(course: Course, shift = 0): { startIdx: number; endIdx: number } {
+  return {
+    startIdx: gmIndex(course.start.grade, course.start.month) + shift,
+    endIdx: gmIndex(course.end.grade, course.end.month) + shift,
+  };
+}
+
+export function statusFromIdx(startIdx: number, endIdx: number, atIdx: number): Status {
   if (atIdx < startIdx) return '예정';
   if (atIdx > endIdx) return '완료';
   return '진행중';
 }
 
+/** gmIndex(start)..gmIndex(end)(+shift) 기준 완료/진행중/예정 */
+export function courseStatus(course: Course, atIdx: number, shift = 0): Status {
+  const { startIdx, endIdx } = shiftedRange(course, shift);
+  return statusFromIdx(startIdx, endIdx, atIdx);
+}
+
 export interface RoadmapEntry {
   course: Course;
   status: Status;
+  startIdx: number;
+  endIdx: number;
+  shift: number;
 }
 
-/** 5개 학교 전부의 로드맵 데이터 (입력에 학교 없음) */
-export function buildAllRoadmaps(atIdx: number): Record<Track, RoadmapEntry[]> {
-  const result = {} as Record<Track, RoadmapEntry[]>;
-  for (const t of TRACKS) {
-    result[t] = TRACK_COURSES.filter((c) => c.track === t).map((c) => ({
-      course: c,
-      status: courseStatus(c, atIdx),
-    }));
-  }
-  return result;
+/**
+ * 목표 학교의 "남은 과목"(완료되지 않은 과정)을 시작 월 순으로 반환.
+ * shifts: 과정 id별 학생 맞춤 이동(개월 수)
+ */
+export function remainingCourses(
+  courses: Course[],
+  track: Track,
+  atIdx: number,
+  shifts: Record<string, number> = {}
+): RoadmapEntry[] {
+  return courses
+    .filter((c) => c.track === track)
+    .map((c) => {
+      const shift = shifts[c.id] ?? 0;
+      const { startIdx, endIdx } = shiftedRange(c, shift);
+      return { course: c, status: statusFromIdx(startIdx, endIdx, atIdx), startIdx, endIdx, shift };
+    })
+    .filter((e) => e.status !== '완료')
+    .sort((a, b) => a.startIdx - b.startIdx || a.course.name.localeCompare(b.course.name));
 }
 
 export interface GyoProjection {
@@ -66,12 +80,14 @@ export function projectGyo(
 }
 
 export interface TimetableBlock {
+  key: string;
+  courseId?: string; // 특화 과정(드래그 시 슬롯 override 대상)
+  gyo?: 'math' | 'sci'; // 교과 식별
   label: string;
   subject: Subject;
+  teacher?: string;
   slot: TimeSlot;
-  fixed: boolean;
-  /** 같은 과목 내 식별용(드래그 블록 등) */
-  key?: string;
+  movable: boolean;
 }
 
 export interface ConflictPair {
@@ -92,57 +108,76 @@ export function detectConflicts(blocks: TimetableBlock[]): ConflictPair[] {
       const a = blocks[i];
       const b = blocks[j];
       if (a.slot.day !== b.slot.day) continue;
-      const aStart = toMinutes(a.slot.start);
-      const aEnd = toMinutes(a.slot.end);
-      const bStart = toMinutes(b.slot.start);
-      const bEnd = toMinutes(b.slot.end);
-      // 시간 겹침: a.start < b.end && b.start < a.end
-      if (aStart < bEnd && bStart < aEnd) {
-        conflicts.push({ a, b });
-      }
+      const aS = toMinutes(a.slot.start);
+      const aE = toMinutes(a.slot.end);
+      const bS = toMinutes(b.slot.start);
+      const bE = toMinutes(b.slot.end);
+      if (aS < bE && bS < aE) conflicts.push({ a, b });
     }
   }
   return conflicts;
 }
 
-export interface Timetable {
+export interface MonthlyTimetable {
   blocks: TimetableBlock[];
   conflicts: ConflictPair[];
 }
 
-/** 시간표 재생성: 특정 학교 특화(고정) + 드래그된 교과 블록 */
-export function buildTimetable(
+/**
+ * 특정 월(viewIdx)의 주간 시간표:
+ *  - 목표 학교에서 그 달에 진행 중인 특화/면접/통합과학 과정
+ *  - 학생이 계속 수강하는 교과 2과목(수학·과학)
+ * slotOverrides: 시간표에서 드래그로 바꾼 과정별 요일/시간
+ */
+export function buildMonthlyTimetable(
+  courses: Course[],
   track: Track,
-  atIdx: number,
-  gyoBlocks: { math: TimeSlot[]; sci: TimeSlot[] }
-): Timetable {
-  const fixed: TimetableBlock[] = TRACK_COURSES.filter(
-    (c) => c.track === track && courseStatus(c, atIdx) === '진행중'
-  ).flatMap((c) =>
-    c.schedule.map((s, i) => ({
+  viewIdx: number,
+  shifts: Record<string, number>,
+  slotOverrides: Record<string, TimeSlot>,
+  gyoBlocks: { math: TimeSlot[]; sci: TimeSlot[] },
+  gyoTeachers: { math?: string; sci?: string }
+): MonthlyTimetable {
+  const fixed: TimetableBlock[] = [];
+  for (const c of courses) {
+    if (c.track !== track) continue;
+    const shift = shifts[c.id] ?? 0;
+    const { startIdx, endIdx } = shiftedRange(c, shift);
+    if (viewIdx < startIdx || viewIdx > endIdx) continue; // 이 달에 진행 안 함
+    const slot = slotOverrides[c.id] ?? c.schedule[0];
+    if (!slot) continue;
+    fixed.push({
+      key: c.id,
+      courseId: c.id,
       label: c.name,
       subject: c.subject,
-      slot: s,
-      fixed: true,
-      key: `${c.id}-${i}`,
-    }))
-  );
+      teacher: c.teacher,
+      slot,
+      movable: true,
+    });
+  }
+
   const gyo: TimetableBlock[] = [
-    ...gyoBlocks.math.map((s, i) => ({
+    ...gyoBlocks.math.map((slot, i) => ({
+      key: `gyo-math-${i}`,
+      gyo: 'math' as const,
       label: '수학 교과',
       subject: '수학' as Subject,
-      slot: s,
-      fixed: false,
-      key: `gyo-math-${i}`,
+      teacher: gyoTeachers.math,
+      slot,
+      movable: true,
     })),
-    ...gyoBlocks.sci.map((s, i) => ({
+    ...gyoBlocks.sci.map((slot, i) => ({
+      key: `gyo-sci-${i}`,
+      gyo: 'sci' as const,
       label: '과학 교과',
       subject: '과학' as Subject,
-      slot: s,
-      fixed: false,
-      key: `gyo-sci-${i}`,
+      teacher: gyoTeachers.sci,
+      slot,
+      movable: true,
     })),
   ];
+
   const blocks = [...fixed, ...gyo];
   return { blocks, conflicts: detectConflicts(blocks) };
 }

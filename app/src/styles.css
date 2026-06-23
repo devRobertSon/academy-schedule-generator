@@ -59,6 +59,174 @@ body {
   font-size: 13px;
 }
 
+/* ── 헤더/네비 ─────────────────────────────── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-nav {
+  display: flex;
+  gap: 6px;
+}
+.page-nav button {
+  padding: 7px 16px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.page-nav button.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.tabs-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* ── 월 이동 ──────────────────────────────── */
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.month-nav button {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.month-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.month-label {
+  font-weight: 700;
+  font-size: 16px;
+  min-width: 160px;
+  text-align: center;
+}
+
+/* ── 관리 페이지 ──────────────────────────── */
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.admin-toolbar button {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.admin-toolbar button.primary {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.admin-toolbar button.ghost {
+  color: var(--muted);
+}
+.admin-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.admin-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.admin-table th,
+.admin-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 6px;
+  text-align: left;
+}
+.admin-table th {
+  background: var(--accent-soft);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+.admin-table input,
+.admin-table select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #fff;
+  max-width: 130px;
+}
+.admin-table input[type='time'] {
+  max-width: 96px;
+}
+.admin-table .ym {
+  display: flex;
+  gap: 3px;
+}
+.admin-table .del {
+  border: 1px solid #f3b4ad;
+  background: #fcebe9;
+  color: #8a241c;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 3px 8px;
+}
+.gyo-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+.gyo-config fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.gyo-config legend {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 6px;
+}
+.gyo-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.gyo-config input,
+.gyo-config select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+}
+.gyo-config input[type='number'] {
+  width: 70px;
+}
+
 /* ── 입력 폼 ─────────────────────────────── */
 .input-form {
   display: flex;
@@ -77,7 +245,8 @@ body {
   color: var(--muted);
   font-weight: 600;
 }
-.field select {
+.field select,
+.field input {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
