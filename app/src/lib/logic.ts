@@ -3,6 +3,11 @@ import { Course, Grade, Subject, TimeSlot, Track, gmIndex } from '../data/roadma
 
 export type Status = '완료' | '진행중' | '예정';
 
+/** 과정의 한 세션(주 N회)을 가리키는 슬롯 override 키 */
+export function sessionKey(courseId: string, sessionIdx: number): string {
+  return `${courseId}#${sessionIdx}`;
+}
+
 /** 현재 월 인덱스(0..59) */
 export function nowIndex(grade: Grade, month: number): number {
   return gmIndex(grade, month);
@@ -82,6 +87,7 @@ export function projectGyo(
 export interface TimetableBlock {
   key: string;
   courseId?: string; // 특화 과정(드래그 시 슬롯 override 대상)
+  sessionIdx?: number; // 과정 내 세션(주 N회) 인덱스
   gyo?: 'math' | 'sci'; // 교과 식별
   label: string;
   subject: Subject;
@@ -144,16 +150,21 @@ export function buildMonthlyTimetable(
     const shift = shifts[c.id] ?? 0;
     const { startIdx, endIdx } = shiftedRange(c, shift);
     if (viewIdx < startIdx || viewIdx > endIdx) continue; // 이 달에 진행 안 함
-    const slot = slotOverrides[c.id] ?? c.schedule[0];
-    if (!slot) continue;
-    fixed.push({
-      key: c.id,
-      courseId: c.id,
-      label: c.name,
-      subject: c.subject,
-      teacher: c.teacher,
-      slot,
-      movable: true,
+    // 한 과정이 주 2회 이상일 수 있으므로 모든 세션을 펼친다
+    c.schedule.forEach((base, i) => {
+      const key = sessionKey(c.id, i);
+      const slot = slotOverrides[key] ?? base;
+      if (!slot) return;
+      fixed.push({
+        key,
+        courseId: c.id,
+        sessionIdx: i,
+        label: c.name,
+        subject: c.subject,
+        teacher: c.teacher,
+        slot,
+        movable: true,
+      });
     });
   }
 

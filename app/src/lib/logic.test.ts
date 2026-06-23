@@ -9,6 +9,7 @@ import {
   nowIndex,
   projectGyo,
   remainingCourses,
+  sessionKey,
   shiftedRange,
 } from './logic';
 
@@ -99,22 +100,29 @@ describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', (
     const sci = tt.blocks.find((b) => b.label === '과학 교과')!;
     expect(sci.teacher).toBe('한지민');
   });
-  it('드래그(slotOverride)로 요일/시간이 바뀐다', () => {
+  it('주 2회 과정은 세션마다 블록이 생긴다', () => {
+    const kmoBlocks = tt.blocks.filter((b) => b.courseId === 'yj_kmo');
+    expect(kmoBlocks.length).toBe(2); // 화 + 토
+    expect(kmoBlocks.map((b) => b.slot.day).sort()).toEqual(['토', '화']);
+  });
+  it('드래그(slotOverride)는 해당 세션만 바꾼다', () => {
     const moved = buildMonthlyTimetable(
       courses,
       '영재학교',
       atIdx,
       {},
-      { yj_kmo: { day: '월', start: '19:00', end: '22:00' } },
+      { [sessionKey('yj_kmo', 0)]: { day: '월', start: '19:00', end: '22:00' } },
       {
         math: [{ day: '수', start: '16:00', end: '18:00' }],
         sci: [{ day: '금', start: '16:00', end: '18:00' }],
       },
       {}
     );
-    const kmo = moved.blocks.find((b) => b.courseId === 'yj_kmo')!;
-    expect(kmo.slot.day).toBe('월');
-    expect(kmo.slot.start).toBe('19:00');
+    const s0 = moved.blocks.find((b) => b.key === sessionKey('yj_kmo', 0))!;
+    const s1 = moved.blocks.find((b) => b.key === sessionKey('yj_kmo', 1))!;
+    expect(s0.slot.day).toBe('월');
+    expect(s0.slot.start).toBe('19:00');
+    expect(s1.slot.day).toBe('토'); // 다른 세션은 그대로
   });
 });
 

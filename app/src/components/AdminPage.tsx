@@ -33,14 +33,34 @@ export default function AdminPage({ store, onChange }: Props) {
   const updateCourse = (id: string, patch: Partial<Course>) =>
     onChange({ ...store, courses: store.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
 
-  const updateSlot = (id: string, slotPatch: Partial<{ day: Weekday; start: string; end: string }>) =>
+  const updateSession = (
+    id: string,
+    i: number,
+    patch: Partial<{ day: Weekday; start: string; end: string }>
+  ) =>
+    onChange({
+      ...store,
+      courses: store.courses.map((c) =>
+        c.id !== id ? c : { ...c, schedule: c.schedule.map((s, j) => (j === i ? { ...s, ...patch } : s)) }
+      ),
+    });
+
+  const addSession = (id: string) =>
     onChange({
       ...store,
       courses: store.courses.map((c) => {
         if (c.id !== id) return c;
-        const base = c.schedule[0] ?? { day: '월' as Weekday, start: '17:00', end: '19:00' };
-        return { ...c, schedule: [{ ...base, ...slotPatch }, ...c.schedule.slice(1)] };
+        const last = c.schedule[c.schedule.length - 1] ?? { day: '월' as Weekday, start: '17:00', end: '19:00' };
+        return { ...c, schedule: [...c.schedule, { ...last }] };
       }),
+    });
+
+  const removeSession = (id: string, i: number) =>
+    onChange({
+      ...store,
+      courses: store.courses.map((c) =>
+        c.id !== id || c.schedule.length <= 1 ? c : { ...c, schedule: c.schedule.filter((_, j) => j !== i) }
+      ),
     });
 
   const addCourse = () => {
@@ -118,16 +138,13 @@ export default function AdminPage({ store, onChange }: Props) {
               <th>유형</th>
               <th>시작</th>
               <th>종료</th>
-              <th>요일</th>
-              <th>시작</th>
-              <th>종료</th>
+              <th>수업 (요일·시간 · 주 N회)</th>
               <th>담당쌤</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {store.courses.map((c) => {
-              const slot = c.schedule[0] ?? { day: '월', start: '17:00', end: '19:00' };
               return (
                 <tr key={c.id}>
                   <td>
@@ -193,19 +210,33 @@ export default function AdminPage({ store, onChange }: Props) {
                     </select>
                   </td>
                   <td>
-                    <select value={slot.day} onChange={(e) => updateSlot(c.id, { day: e.target.value as Weekday })}>
-                      {DAYS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
+                    <div className="sessions">
+                      {c.schedule.map((s, i) => (
+                        <div className="session-row" key={i}>
+                          <select value={s.day} onChange={(e) => updateSession(c.id, i, { day: e.target.value as Weekday })}>
+                            {DAYS.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                          <input type="time" value={s.start} onChange={(e) => updateSession(c.id, i, { start: e.target.value })} />
+                          <span>~</span>
+                          <input type="time" value={s.end} onChange={(e) => updateSession(c.id, i, { end: e.target.value })} />
+                          <button
+                            className="del"
+                            title="세션 삭제"
+                            disabled={c.schedule.length <= 1}
+                            onClick={() => removeSession(c.id, i)}
+                          >
+                            −
+                          </button>
+                        </div>
                       ))}
-                    </select>
-                  </td>
-                  <td>
-                    <input type="time" value={slot.start} onChange={(e) => updateSlot(c.id, { start: e.target.value })} />
-                  </td>
-                  <td>
-                    <input type="time" value={slot.end} onChange={(e) => updateSlot(c.id, { end: e.target.value })} />
+                      <button className="mini" onClick={() => addSession(c.id)}>
+                        + 세션(주 N회)
+                      </button>
+                    </div>
                   </td>
                   <td>
                     <input

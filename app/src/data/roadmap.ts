@@ -70,7 +70,7 @@ export const TRACK_COURSES: Course[] = [
   { id: 'yj_chang1', name: '창의수학 1단계', track: '영재학교', subject: '수학', type: '특화',
     start: { grade: '중1', month: 6 }, end: { grade: '중1', month: 2 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }], teacher: '김민수' },
   { id: 'yj_kmo', name: 'KMO', track: '영재학교', subject: '수학', type: '특화',
-    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 8 }, schedule: [{ day: '화', start: '18:00', end: '21:00' }], teacher: '이정훈' },
+    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 8 }, schedule: [{ day: '화', start: '18:00', end: '21:00' }, { day: '토', start: '10:00', end: '12:00' }], teacher: '이정훈' },
   { id: 'yj_final_math', name: '영재 파이널 수학', track: '영재학교', subject: '수학', type: '특화',
     start: { grade: '중2', month: 12 }, end: { grade: '중3', month: 8 }, schedule: [{ day: '목', start: '18:00', end: '21:00' }], teacher: '이정훈' },
   { id: 'yj_hs_math_review', name: '고등수학 총정리', track: '영재학교', subject: '수학', type: '특화',

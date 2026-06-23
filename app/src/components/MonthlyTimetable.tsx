@@ -36,7 +36,7 @@ interface Props {
   onViewIdxChange: (idx: number) => void;
   shifts: Record<string, number>;
   slotOverrides: Record<string, TimeSlot>;
-  onSlotOverrideChange: (courseId: string, slot: TimeSlot) => void;
+  onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
   gyoBlocks: GyoBlocks;
   onGyoBlocksChange: (next: GyoBlocks) => void;
 }
@@ -174,7 +174,7 @@ export default function MonthlyTimetable({
     const newSlot: TimeSlot = { day, start: toHHMM(startMin), end: toHHMM(startMin + dur) };
 
     if (block.courseId) {
-      onSlotOverrideChange(block.courseId, newSlot);
+      onSlotOverrideChange(block.key, newSlot); // block.key = `${courseId}#${sessionIdx}`
     } else if (block.gyo) {
       const gm = block.key.match(/^gyo-(math|sci)-(\d+)$/);
       if (!gm) return;
