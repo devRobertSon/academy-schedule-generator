@@ -46,8 +46,7 @@ src/
 
 ## GitHub Pages 배포
 
-- `main` 브랜치에 push하면 `.github/workflows/deploy.yml`이 빌드 후 GitHub Pages로 자동 배포합니다.
-- **최초 1회**: 레포 Settings → Pages → Source = **"GitHub Actions"** 로 설정하세요.
+- `main` 브랜치에 push하면 GitHub Pages에 자동으로 반영됩니다. (별도의 Actions 워크플로우 없음)
 - 레포명이 바뀌면 `vite.config.ts`의 `base`를 `/<레포명>/`로 맞추세요. (현재 `/academy-schedule-generator/`)
 
 ## 학원이 채워야 할 값
