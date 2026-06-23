@@ -1,0 +1,317 @@
+:root {
+  --bg: #f4f3ee;
+  --card: #ffffff;
+  --ink: #2c2c2a;
+  --muted: #6b6a64;
+  --line: #e2e0d8;
+  --accent: #d6443b;
+  --accent-soft: #f6f5f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.app-header h1 {
+  font-size: 22px;
+  margin: 8px 0 4px;
+}
+.app-header p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.card h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ── 입력 폼 ─────────────────────────────── */
+.input-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.field select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+}
+.form-note {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── 로드맵 ───────────────────────────────── */
+.roadmap-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.roadmap-svg {
+  display: block;
+}
+
+/* ── 시간표 빌더 ──────────────────────────── */
+.track-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.track-tab {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.track-tab.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.tt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.mini {
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.mini.ghost {
+  color: var(--muted);
+}
+.hint {
+  color: var(--muted);
+}
+
+.tt-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.tt-grid {
+  background: #fff;
+}
+.tt-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--accent-soft);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.tt-time-label {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 6px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.conflict-box {
+  margin-top: 12px;
+  background: #fcebe9;
+  border: 1px solid #f3b4ad;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #8a241c;
+}
+.conflict-box ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.lesson-list {
+  margin-top: 14px;
+  font-size: 13px;
+}
+.lesson-list ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  columns: 2;
+}
+.lesson-list li {
+  margin-bottom: 4px;
+  break-inside: avoid;
+}
+.lesson-list .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* ── 내보내기 ─────────────────────────────── */
+.export-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+.export-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.export-bar button {
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.export-bar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.export-region {
+  background: #fff;
+  border-radius: 10px;
+}
+.export-summary {
+  padding: 14px 16px 0;
+}
+.export-summary h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.export-summary p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.gen-date {
+  color: var(--muted);
+}
+
+.app-footer {
+  margin: 18px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── 반응형 ───────────────────────────────── */
+@media (max-width: 640px) {
+  .lesson-list ul {
+    columns: 1;
+  }
+  .field {
+    min-width: 120px;
+    flex: 1 1 40%;
+  }
+}
+
+/* ── 인쇄 / PDF ───────────────────────────── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .app {
+    max-width: none;
+    padding: 0;
+  }
+  .card {
+    border: none;
+    padding: 0;
+    margin: 0 0 12px;
+    break-inside: avoid;
+  }
+  .export-region {
+    border: none;
+  }
+  .roadmap-scroll,
+  .tt-scroll {
+    overflow: visible;
+    border: none;
+  }
+  /* 로드맵을 한 페이지 폭에 맞춰 축소 */
+  .roadmap-svg {
+    width: 100% !important;
+    height: auto !important;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}
