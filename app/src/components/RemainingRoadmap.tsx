@@ -124,9 +124,9 @@ export default function RemainingRoadmap({
     };
   }, [drag, atIdx, onShiftChange]);
 
-  const renderGyoItem = (p: GyoProjection, y: number, key: string) => {
+  const renderGyoItem = (p: GyoProjection, y: number, key: string, paceMonths: number) => {
     const vStart = Math.max(axisStart, p.startIdx);
-    const vEnd = Math.min(axisEnd + 1, p.startIdx + gyo.mathMonthsPerItem);
+    const vEnd = Math.min(axisEnd + 1, p.startIdx + paceMonths);
     if (vEnd <= vStart) return null;
     const x = xOf(vStart);
     const w = (vEnd - vStart) * COL_W;
@@ -264,13 +264,13 @@ export default function RemainingRoadmap({
       <text x={12} y={mathRowY + BAR_H / 2 + 3} fontSize={11} fontWeight={500} fill="#2C2C2A">
         수학 교과
       </text>
-      {mathProj.map((p, i) => renderGyoItem(p, mathRowY, `math-${i}`))}
+      {mathProj.map((p, i) => renderGyoItem(p, mathRowY, `math-${i}`, gyo.mathMonthsPerItem))}
 
       <text x={12} y={sciLabelY + BAR_H / 2 + 3} fontSize={11} fontWeight={500} fill="#2C2C2A">
         과학 교과
       </text>
       {form.sciMode === 'mid'
-        ? sciMidProj.map((p, i) => renderGyoItem(p, sciLabelY, `scimid-${i}`))
+        ? sciMidProj.map((p, i) => renderGyoItem(p, sciLabelY, `scimid-${i}`, gyo.sciMonthsPerItem))
         : SCI_GYO_HS_PARALLEL.map((name, i) => {
             const proj: GyoProjection = {
               name,
@@ -278,7 +278,7 @@ export default function RemainingRoadmap({
               done: i < form.sciIdx,
               current: i === form.sciIdx,
             };
-            return renderGyoItem(proj, hsRowsTop + i * ROW_H, `scihs-${i}`);
+            return renderGyoItem(proj, hsRowsTop + i * ROW_H, `scihs-${i}`, gyo.sciMonthsPerItem);
           })}
 
       {/* 현재 월 세로선(맨 왼쪽) */}

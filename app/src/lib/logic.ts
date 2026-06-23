@@ -3,6 +3,11 @@ import { Course, Grade, Subject, TimeSlot, Track, gmIndex } from '../data/roadma
 
 export type Status = '완료' | '진행중' | '예정';
 
+/** 과정의 한 세션(주 N회)을 가리키는 슬롯 override 키 */
+export function sessionKey(courseId: string, sessionIdx: number): string {
+  return `${courseId}#${sessionIdx}`;
+}
+
 /** 현재 월 인덱스(0..59) */
 export function nowIndex(grade: Grade, month: number): number {
   return gmIndex(grade, month);
@@ -82,6 +87,7 @@ export function projectGyo(
 export interface TimetableBlock {
   key: string;
   courseId?: string; // 특화 과정(드래그 시 슬롯 override 대상)
+  sessionIdx?: number; // 과정 내 세션(주 N회) 인덱스
   gyo?: 'math' | 'sci'; // 교과 식별
   label: string;
   subject: Subject;
@@ -125,59 +131,39 @@ export interface MonthlyTimetable {
 
 /**
  * 특정 월(viewIdx)의 주간 시간표:
- *  - 목표 학교에서 그 달에 진행 중인 특화/면접/통합과학 과정
- *  - 학생이 계속 수강하는 교과 2과목(수학·과학)
- * slotOverrides: 시간표에서 드래그로 바꾼 과정별 요일/시간
+ *  - 목표 학교(track)에서 그 달에 진행 중인 과정
+ *  - 모든 학생 공통('공통') 교과 과정
+ * 한 과정이 주 N회면 세션마다 블록이 생긴다.
+ * slotOverrides: 시간표에서 드래그로 바꾼 세션별 요일/시간(키 = courseId#sessionIdx)
  */
 export function buildMonthlyTimetable(
   courses: Course[],
   track: Track,
   viewIdx: number,
   shifts: Record<string, number>,
-  slotOverrides: Record<string, TimeSlot>,
-  gyoBlocks: { math: TimeSlot[]; sci: TimeSlot[] },
-  gyoTeachers: { math?: string; sci?: string }
+  slotOverrides: Record<string, TimeSlot>
 ): MonthlyTimetable {
-  const fixed: TimetableBlock[] = [];
+  const blocks: TimetableBlock[] = [];
   for (const c of courses) {
-    if (c.track !== track) continue;
+    if (c.track !== track && c.track !== '공통') continue;
     const shift = shifts[c.id] ?? 0;
     const { startIdx, endIdx } = shiftedRange(c, shift);
     if (viewIdx < startIdx || viewIdx > endIdx) continue; // 이 달에 진행 안 함
-    const slot = slotOverrides[c.id] ?? c.schedule[0];
-    if (!slot) continue;
-    fixed.push({
-      key: c.id,
-      courseId: c.id,
-      label: c.name,
-      subject: c.subject,
-      teacher: c.teacher,
-      slot,
-      movable: true,
+    c.schedule.forEach((base, i) => {
+      const key = sessionKey(c.id, i);
+      const slot = slotOverrides[key] ?? base;
+      if (!slot) return;
+      blocks.push({
+        key,
+        courseId: c.id,
+        sessionIdx: i,
+        label: c.name,
+        subject: c.subject,
+        teacher: c.teacher,
+        slot,
+        movable: true,
+      });
     });
   }
-
-  const gyo: TimetableBlock[] = [
-    ...gyoBlocks.math.map((slot, i) => ({
-      key: `gyo-math-${i}`,
-      gyo: 'math' as const,
-      label: '수학 교과',
-      subject: '수학' as Subject,
-      teacher: gyoTeachers.math,
-      slot,
-      movable: true,
-    })),
-    ...gyoBlocks.sci.map((slot, i) => ({
-      key: `gyo-sci-${i}`,
-      gyo: 'sci' as const,
-      label: '과학 교과',
-      subject: '과학' as Subject,
-      teacher: gyoTeachers.sci,
-      slot,
-      movable: true,
-    })),
-  ];
-
-  const blocks = [...fixed, ...gyo];
   return { blocks, conflicts: detectConflicts(blocks) };
 }

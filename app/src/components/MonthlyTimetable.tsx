@@ -19,26 +19,17 @@ import {
   gradeOfIndex,
   monthOfIndex,
 } from '../data/roadmap';
-import { GyoConfig } from '../lib/store';
 import { TimetableBlock, buildMonthlyTimetable } from '../lib/logic';
-
-export interface GyoBlocks {
-  math: TimeSlot[];
-  sci: TimeSlot[];
-}
 
 interface Props {
   courses: Course[];
-  gyo: GyoConfig;
   track: Track;
   atIdx: number;
   viewIdx: number;
   onViewIdxChange: (idx: number) => void;
   shifts: Record<string, number>;
   slotOverrides: Record<string, TimeSlot>;
-  onSlotOverrideChange: (courseId: string, slot: TimeSlot) => void;
-  gyoBlocks: GyoBlocks;
-  onGyoBlocksChange: (next: GyoBlocks) => void;
+  onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
 }
 
 const DAYS: Weekday[] = ['월', '화', '수', '목', '금', '토', '일'];
@@ -126,7 +117,6 @@ function Cell({ dayIdx, slot }: { dayIdx: number; slot: number }) {
 
 export default function MonthlyTimetable({
   courses,
-  gyo,
   track,
   atIdx,
   viewIdx,
@@ -134,18 +124,12 @@ export default function MonthlyTimetable({
   shifts,
   slotOverrides,
   onSlotOverrideChange,
-  gyoBlocks,
-  onGyoBlocksChange,
 }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const tt = useMemo(
-    () =>
-      buildMonthlyTimetable(courses, track, viewIdx, shifts, slotOverrides, gyoBlocks, {
-        math: gyo.mathTeacher,
-        sci: gyo.sciTeacher,
-      }),
-    [courses, track, viewIdx, shifts, slotOverrides, gyoBlocks, gyo.mathTeacher, gyo.sciTeacher]
+    () => buildMonthlyTimetable(courses, track, viewIdx, shifts, slotOverrides),
+    [courses, track, viewIdx, shifts, slotOverrides]
   );
 
   const conflictKeys = useMemo(() => {
@@ -171,31 +155,7 @@ export default function MonthlyTimetable({
     const maxStart = END_HOUR * 60 - dur;
     if (startMin > maxStart) startMin = maxStart;
     if (startMin < START_HOUR * 60) startMin = START_HOUR * 60;
-    const newSlot: TimeSlot = { day, start: toHHMM(startMin), end: toHHMM(startMin + dur) };
-
-    if (block.courseId) {
-      onSlotOverrideChange(block.courseId, newSlot);
-    } else if (block.gyo) {
-      const gm = block.key.match(/^gyo-(math|sci)-(\d+)$/);
-      if (!gm) return;
-      const which = gm[1] as 'math' | 'sci';
-      const i = Number(gm[2]);
-      const arr = [...gyoBlocks[which]];
-      arr[i] = newSlot;
-      onGyoBlocksChange({ ...gyoBlocks, [which]: arr });
-    }
-  };
-
-  const addSession = (which: 'math' | 'sci') => {
-    const arr = [...gyoBlocks[which]];
-    const base = arr[arr.length - 1] ?? { day: '수', start: '16:00', end: '18:00' };
-    const nextDay = DAYS[(DAYS.indexOf(base.day as Weekday) + 1) % DAYS.length];
-    arr.push({ day: nextDay, start: base.start, end: base.end });
-    onGyoBlocksChange({ ...gyoBlocks, [which]: arr });
-  };
-  const removeSession = (which: 'math' | 'sci') => {
-    if (gyoBlocks[which].length <= 1) return;
-    onGyoBlocksChange({ ...gyoBlocks, [which]: gyoBlocks[which].slice(0, -1) });
+    onSlotOverrideChange(block.key, { day, start: toHHMM(startMin), end: toHHMM(startMin + dur) });
   };
 
   const gridW = TIME_COL_W + DAYS.length * DAY_W;
@@ -208,7 +168,6 @@ export default function MonthlyTimetable({
 
   return (
     <div className="timetable-builder">
-      {/* 월 이동 */}
       <div className="month-nav">
         <button onClick={() => onViewIdxChange(Math.max(atIdx, viewIdx - 1))} disabled={viewIdx <= atIdx}>
           ◀ 이전 달
@@ -223,24 +182,15 @@ export default function MonthlyTimetable({
 
       <div className="tt-toolbar no-print">
         <span>
-          <span className="swatch" style={{ background: COLORS.수학.fill }} /> 수학 교과
-          <button className="mini" onClick={() => addSession('math')}>
-            + 세션
-          </button>
-          <button className="mini ghost" onClick={() => removeSession('math')}>
-            − 세션
-          </button>
+          <span className="swatch" style={{ background: COLORS.수학.fill }} /> 수학
         </span>
         <span>
-          <span className="swatch" style={{ background: COLORS.과학.fill }} /> 과학 교과
-          <button className="mini" onClick={() => addSession('sci')}>
-            + 세션
-          </button>
-          <button className="mini ghost" onClick={() => removeSession('sci')}>
-            − 세션
-          </button>
+          <span className="swatch" style={{ background: COLORS.과학.fill }} /> 과학
         </span>
-        <span className="hint">블록을 드래그해 요일·시간을 옮기세요</span>
+        <span>
+          <span className="swatch" style={{ background: COLORS.면접.fill }} /> 면접
+        </span>
+        <span className="hint">블록을 드래그해 요일·시간을 옮기세요 · 수업 추가는 [관리] 탭</span>
       </div>
 
       <div className="tt-scroll">

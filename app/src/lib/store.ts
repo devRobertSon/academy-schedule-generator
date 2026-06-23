@@ -1,17 +1,8 @@
 // src/lib/store.ts — 과목/교과 설정 영속화(localStorage) + JSON 백업
-import {
-  Course,
-  GYO_DEFAULT_BLOCKS,
-  GYO_PACE,
-  TimeSlot,
-  TRACK_COURSES,
-} from '../data/roadmap';
+import { Course, GYO_PACE, TRACK_COURSES } from '../data/roadmap';
 
+/** 교과 진도 투영 속도(월/항목)만 보관. 교과 수업 자체는 '공통' 과정으로 관리. */
 export interface GyoConfig {
-  mathSlots: TimeSlot[];
-  mathTeacher?: string;
-  sciSlots: TimeSlot[];
-  sciTeacher?: string;
   mathMonthsPerItem: number;
   sciMonthsPerItem: number;
 }
@@ -21,7 +12,7 @@ export interface StoreData {
   gyo: GyoConfig;
 }
 
-const KEY = 'asg.store.v1';
+const KEY = 'asg.store.v2';
 
 export function defaultStore(): StoreData {
   return {
@@ -32,10 +23,6 @@ export function defaultStore(): StoreData {
       end: { ...c.end },
     })),
     gyo: {
-      mathSlots: GYO_DEFAULT_BLOCKS.math.map((s) => ({ ...s })),
-      sciSlots: GYO_DEFAULT_BLOCKS.sci.map((s) => ({ ...s })),
-      mathTeacher: '박서연',
-      sciTeacher: '한지민',
       mathMonthsPerItem: GYO_PACE.mathMonthsPerItem,
       sciMonthsPerItem: GYO_PACE.sciMonthsPerItem,
     },

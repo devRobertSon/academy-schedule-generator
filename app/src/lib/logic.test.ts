@@ -9,6 +9,7 @@ import {
   nowIndex,
   projectGyo,
   remainingCourses,
+  sessionKey,
   shiftedRange,
 } from './logic';
 
@@ -35,11 +36,12 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
     expect(courseStatus(byId('yj_chang1'), atIdx)).toBe('완료');
     expect(names).not.toContain('창의수학 1단계');
   });
-  it('진행중/예정 과목만 남는다', () => {
-    expect(names).toContain('KMO');
-    expect(names).toContain('천체·유전 특강');
-    expect(names).toContain('영재 파이널 수학');
-    expect(rem.every((e) => e.status !== '완료')).toBe(true);
+  it('KMO 4과목이 모두 남는다', () => {
+    expect(names).toEqual(expect.arrayContaining(['KMO 대수', 'KMO 기하', 'KMO 정수', 'KMO 조합']));
+  });
+  it('공통(교과) 과정은 로드맵 남은 과목에 포함되지 않는다', () => {
+    expect(names).not.toContain('수학 교과');
+    expect(names).not.toContain('과학 교과');
   });
   it('시작 월 순으로 정렬된다', () => {
     const starts = rem.map((e) => e.startIdx);
@@ -48,16 +50,16 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
 });
 
 describe('남은 과목 — 중1 6월 영재학교(전 과정 남음)', () => {
-  it('영재학교 8개 과정이 모두 남는다', () => {
+  it('영재학교 11개 과정(KMO 4분할 포함)이 모두 남는다', () => {
     const atIdx = nowIndex('중1', 6);
     const rem = remainingCourses(courses, '영재학교', atIdx);
-    expect(rem.length).toBe(8);
+    expect(rem.length).toBe(11);
   });
 });
 
 describe('수강 월 이동(shift)', () => {
   it('shift가 시작/종료 인덱스를 함께 민다', () => {
-    const c = byId('yj_kmo');
+    const c = byId('yj_kmo_algebra');
     const base = shiftedRange(c, 0);
     const moved = shiftedRange(c, 3);
     expect(moved.startIdx).toBe(base.startIdx + 3);
@@ -65,56 +67,42 @@ describe('수강 월 이동(shift)', () => {
   });
   it('shift로 상태가 예정으로 바뀔 수 있다', () => {
     const atIdx = nowIndex('중2', 9); // 42
-    const c = byId('yj_kmo'); // 36~53 → 진행중
+    const c = byId('yj_kmo_algebra'); // 36~53 → 진행중
     expect(courseStatus(c, atIdx, 0)).toBe('진행중');
-    expect(courseStatus(c, atIdx, 12)).toBe('예정'); // 48~ 로 밀면 예정
+    expect(courseStatus(c, atIdx, 12)).toBe('예정');
   });
 });
 
 describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', () => {
   const atIdx = nowIndex('중2', 9);
-  const tt = buildMonthlyTimetable(
-    courses,
-    '영재학교',
-    atIdx,
-    {},
-    {},
-    {
-      math: [{ day: '수', start: '16:00', end: '18:00' }],
-      sci: [{ day: '금', start: '16:00', end: '18:00' }],
-    },
-    { math: '박서연', sci: '한지민' }
-  );
+  const tt = buildMonthlyTimetable(courses, '영재학교', atIdx, {}, {});
 
-  it('그 달 진행 중인 특화 과정 + 교과 2과목이 들어간다', () => {
+  it('그 달 진행 중인 과정 + 공통 교과가 들어간다', () => {
     const labels = tt.blocks.map((b) => b.label);
-    expect(labels).toContain('KMO');
+    expect(labels).toContain('KMO 대수');
     expect(labels).toContain('천체·유전 특강');
-    expect(labels).toContain('수학 교과');
+    expect(labels).toContain('수학 교과'); // 공통 교과 과정
     expect(labels).toContain('과학 교과');
   });
   it('담당 선생님이 블록에 포함된다', () => {
-    const kmo = tt.blocks.find((b) => b.label === 'KMO')!;
+    const kmo = tt.blocks.find((b) => b.label === 'KMO 대수')!;
     expect(kmo.teacher).toBe('이정훈');
     const sci = tt.blocks.find((b) => b.label === '과학 교과')!;
     expect(sci.teacher).toBe('한지민');
   });
-  it('드래그(slotOverride)로 요일/시간이 바뀐다', () => {
-    const moved = buildMonthlyTimetable(
-      courses,
-      '영재학교',
-      atIdx,
-      {},
-      { yj_kmo: { day: '월', start: '19:00', end: '22:00' } },
-      {
-        math: [{ day: '수', start: '16:00', end: '18:00' }],
-        sci: [{ day: '금', start: '16:00', end: '18:00' }],
-      },
-      {}
-    );
-    const kmo = moved.blocks.find((b) => b.courseId === 'yj_kmo')!;
-    expect(kmo.slot.day).toBe('월');
-    expect(kmo.slot.start).toBe('19:00');
+  it('주 2회 과정(수학 교과)은 세션마다 블록이 생긴다', () => {
+    const mathBlocks = tt.blocks.filter((b) => b.courseId === 'gyo_math');
+    expect(mathBlocks.length).toBe(2); // 수 + 토
+    expect(mathBlocks.map((b) => b.slot.day).sort()).toEqual(['수', '토']);
+  });
+  it('드래그(slotOverride)는 해당 세션만 바꾼다', () => {
+    const moved = buildMonthlyTimetable(courses, '영재학교', atIdx, {}, {
+      [sessionKey('gyo_math', 0)]: { day: '월', start: '19:00', end: '21:00' },
+    });
+    const s0 = moved.blocks.find((b) => b.key === sessionKey('gyo_math', 0))!;
+    const s1 = moved.blocks.find((b) => b.key === sessionKey('gyo_math', 1))!;
+    expect(s0.slot.day).toBe('월');
+    expect(s1.slot.day).toBe('토'); // 다른 세션은 그대로
   });
 });
 

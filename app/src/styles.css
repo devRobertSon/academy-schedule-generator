@@ -188,6 +188,23 @@ body {
   cursor: pointer;
   padding: 3px 8px;
 }
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.session-row span {
+  color: var(--muted);
+}
+.session-row .del {
+  padding: 2px 7px;
+}
+
 .gyo-config {
   display: flex;
   flex-wrap: wrap;
