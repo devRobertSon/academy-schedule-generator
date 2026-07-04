@@ -37,6 +37,7 @@ export default function App() {
   const [info, setInfo] = useState<ConsultInfo>(DEFAULT_CONSULT);
   const [track, setTrack] = useState<Track>('영재학교');
   const [shifts, setShifts] = useState<Record<string, number>>({});
+  const [gyoShift, setGyoShift] = useState<{ math: number; sci: number }>({ math: 0, sci: 0 });
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
@@ -136,6 +137,8 @@ export default function App() {
                   atIdx={atIdx}
                   shifts={shifts}
                   onShiftChange={(id, shift) => setShifts((s) => ({ ...s, [id]: shift }))}
+                  gyoShift={gyoShift}
+                  onGyoShiftChange={(subject, shift) => setGyoShift((g) => ({ ...g, [subject]: shift }))}
                 />
               </div>
             </section>

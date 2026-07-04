@@ -39,6 +39,8 @@ interface Props {
   atIdx: number;
   shifts: Record<string, number>;
   onShiftChange: (courseId: string, shift: number) => void;
+  gyoShift: { math: number; sci: number };
+  onGyoShiftChange: (subject: 'math' | 'sci', shift: number) => void;
 }
 
 interface DragState {
@@ -49,6 +51,12 @@ interface DragState {
   baseEnd: number;
 }
 
+interface GyoDragState {
+  subject: 'math' | 'sci';
+  startX: number;
+  origShift: number;
+}
+
 export default function RemainingRoadmap({
   courses,
   gyo,
@@ -57,10 +65,15 @@ export default function RemainingRoadmap({
   atIdx,
   shifts,
   onShiftChange,
+  gyoShift,
+  onGyoShiftChange,
 }: Props) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  const [gyoDrag, setGyoDrag] = useState<GyoDragState | null>(null);
+  const gyoDragRef = useRef<GyoDragState | null>(null);
+  gyoDragRef.current = gyoDrag;
 
   const axisStart = Math.min(atIdx, 59);
   const axisEnd = 59;
@@ -89,10 +102,13 @@ export default function RemainingRoadmap({
   const gyoSectionTop = courseTop + courseLevels * ROW_H + 18;
 
   // 교과 투영 (form.mathIdx = '완료한 단계' → 다음 단계가 현재 수강)
-  const mathProj = projectGyo(MATH_GYO_SEQUENCE, form.mathIdx + 1, atIdx, gyo.mathMonthsPerItem);
+  // gyoShift: 드래그로 교과 시작 시기를 통째로 앞/뒤로 이동
+  const mathNow = atIdx + gyoShift.math;
+  const sciNow = atIdx + gyoShift.sci;
+  const mathProj = projectGyo(MATH_GYO_SEQUENCE, form.mathIdx + 1, mathNow, gyo.mathMonthsPerItem);
   const sciMidCurrent = form.sciMode === 'mid' ? form.sciIdx + 1 : SCI_GYO_MID_SEQUENCE.length;
-  const sciMidProj = projectGyo(SCI_GYO_MID_SEQUENCE, sciMidCurrent, atIdx, gyo.sciMonthsPerItem);
-  const hsStartIdx = atIdx + (SCI_GYO_MID_SEQUENCE.length - sciMidCurrent) * gyo.sciMonthsPerItem;
+  const sciMidProj = projectGyo(SCI_GYO_MID_SEQUENCE, sciMidCurrent, sciNow, gyo.sciMonthsPerItem);
+  const hsStartIdx = sciNow + (SCI_GYO_MID_SEQUENCE.length - sciMidCurrent) * gyo.sciMonthsPerItem;
 
   const mathRowY = gyoSectionTop + 22;
   const sciLabelY = mathRowY + ROW_H;
@@ -124,14 +140,51 @@ export default function RemainingRoadmap({
     };
   }, [drag, atIdx, onShiftChange]);
 
-  const renderGyoItem = (p: GyoProjection, y: number, key: string, paceMonths: number) => {
+  // 드래그(교과 시기 이동) — 과목 전체 진도를 통째로 이동
+  useEffect(() => {
+    if (!gyoDrag) return;
+    const onMove = (e: PointerEvent) => {
+      const d = gyoDragRef.current;
+      if (!d) return;
+      const deltaCols = Math.round((e.clientX - d.startX) / COL_W);
+      let newShift = d.origShift + deltaCols;
+      // 현재 단원이 오늘보다 앞서지 않도록(>=0), 끝(59) 이내
+      if (newShift < 0) newShift = 0;
+      if (newShift > 59 - atIdx) newShift = 59 - atIdx;
+      onGyoShiftChange(d.subject, newShift);
+    };
+    const onUp = () => setGyoDrag(null);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [gyoDrag, atIdx, onGyoShiftChange]);
+
+  const renderGyoItem = (
+    p: GyoProjection,
+    y: number,
+    key: string,
+    paceMonths: number,
+    subject: 'math' | 'sci'
+  ) => {
     const vStart = Math.max(axisStart, p.startIdx);
     const vEnd = Math.min(axisEnd + 1, p.startIdx + paceMonths);
     if (vEnd <= vStart) return null;
     const x = xOf(vStart);
     const w = (vEnd - vStart) * COL_W;
+    const dragging = gyoDrag?.subject === subject;
     return (
-      <g key={key} opacity={p.done ? 0.4 : 1}>
+      <g
+        key={key}
+        opacity={p.done ? 0.4 : 1}
+        style={{ cursor: 'grab' }}
+        onPointerDown={(ev) => {
+          ev.preventDefault();
+          setGyoDrag({ subject, startX: ev.clientX, origShift: gyoShift[subject] });
+        }}
+      >
         <rect
           x={x}
           y={y}
@@ -139,8 +192,8 @@ export default function RemainingRoadmap({
           height={BAR_H}
           rx={4}
           fill={COLORS.교과.fill}
-          stroke={p.current ? '#D6443B' : '#B4B2A9'}
-          strokeWidth={p.current ? 2 : 0.8}
+          stroke={dragging || p.current ? '#D6443B' : '#B4B2A9'}
+          strokeWidth={dragging || p.current ? 2 : 0.8}
         />
         {w >= 34 && (
           <text x={x + w / 2} y={y + BAR_H / 2 + 3.5} fontSize={9} fill={COLORS.교과.text} textAnchor="middle">
@@ -258,19 +311,19 @@ export default function RemainingRoadmap({
       {/* 교과 섹션 */}
       <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke="#C9C7BD" strokeWidth={1} />
       <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill="#2C2C2A">
-        교과 과정(진도 투영)
+        교과 과정 (드래그로 시기 이동)
       </text>
 
       <text x={12} y={mathRowY + BAR_H / 2 + 3} fontSize={11} fontWeight={500} fill="#2C2C2A">
         수학 교과
       </text>
-      {mathProj.map((p, i) => renderGyoItem(p, mathRowY, `math-${i}`, gyo.mathMonthsPerItem))}
+      {mathProj.map((p, i) => renderGyoItem(p, mathRowY, `math-${i}`, gyo.mathMonthsPerItem, 'math'))}
 
       <text x={12} y={sciLabelY + BAR_H / 2 + 3} fontSize={11} fontWeight={500} fill="#2C2C2A">
         과학 교과
       </text>
       {form.sciMode === 'mid'
-        ? sciMidProj.map((p, i) => renderGyoItem(p, sciLabelY, `scimid-${i}`, gyo.sciMonthsPerItem))
+        ? sciMidProj.map((p, i) => renderGyoItem(p, sciLabelY, `scimid-${i}`, gyo.sciMonthsPerItem, 'sci'))
         : SCI_GYO_HS_PARALLEL.map((name, i) => {
             const proj: GyoProjection = {
               name,
@@ -278,7 +331,7 @@ export default function RemainingRoadmap({
               done: i < form.sciIdx,
               current: i === form.sciIdx,
             };
-            return renderGyoItem(proj, hsRowsTop + i * ROW_H, `scihs-${i}`, gyo.sciMonthsPerItem);
+            return renderGyoItem(proj, hsRowsTop + i * ROW_H, `scihs-${i}`, gyo.sciMonthsPerItem, 'sci');
           })}
 
       {/* 현재 월 세로선(맨 왼쪽) */}
