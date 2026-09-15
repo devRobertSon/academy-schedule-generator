@@ -122,6 +122,10 @@ export default function AdminPage({ store, onChange }: Props) {
           </option>
         ))}
       </select>
+      <select value={value.half ? '1' : '0'} title="월초 / 월중순" onChange={(e) => oc({ ...value, half: e.target.value === '1' })}>
+        <option value="0">초</option>
+        <option value="1">중순</option>
+      </select>
     </span>
   );
 

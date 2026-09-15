@@ -242,7 +242,7 @@ export interface JourneySummary {
   nextPhase?: Phase;
   nextPhaseStartIdx?: number;
   nextCourses: string[];
-  milestones: { name: string; idx: number; monthsLeft: number }[];
+  milestones: { name: string; pos: number; half: boolean; monthsLeft: number }[];
 }
 
 export function journeySummary(
@@ -276,11 +276,11 @@ export function journeySummary(
 
   const milestones = plan.milestones
     .map((m) => {
-      const idx = gmIndex(m.at.grade, m.at.month);
-      return { name: m.name, idx, monthsLeft: idx - atIdx };
+      const pos = startPos(m.at); // 중순이면 x.5
+      return { name: m.name, pos, half: !!m.at.half, monthsLeft: pos - atIdx };
     })
     .filter((m) => m.monthsLeft >= 0)
-    .sort((a, b) => a.idx - b.idx);
+    .sort((a, b) => a.pos - b.pos);
 
   return {
     currentPhase,

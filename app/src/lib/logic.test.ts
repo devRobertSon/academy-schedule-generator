@@ -214,8 +214,11 @@ describe('입시 여정 요약(journeySummary) — 영재학교 중2 9월', () =
   it('다음 단계에 시작하는 과정을 보여준다', () => {
     expect(j.nextCourses).toContain('영재 파이널 수학');
   });
-  it('시험 마일스톤과 남은 개월을 계산한다', () => {
-    expect(j.milestones[0].name).toBe('영재학교 1차(지필)');
-    expect(j.milestones[0].monthsLeft).toBe(gmIndex('중3', 5) - atIdx); // 8
+  it('시험 마일스톤(중순=0.5월)과 남은 개월을 계산한다', () => {
+    expect(j.milestones[0].name).toBe('영재학교 2차 평가(지필)');
+    expect(j.milestones[0].half).toBe(true);
+    expect(j.milestones[0].monthsLeft).toBe(gmIndex('중3', 7) + 0.5 - atIdx); // 10.5
+    expect(j.milestones[1].name).toBe('영재학교 3차 평가(면접)');
+    expect(j.milestones[1].monthsLeft).toBe(gmIndex('중3', 8) - atIdx); // 7월과 8월 사이 = 8월 초
   });
 });

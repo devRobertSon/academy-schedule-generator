@@ -30,7 +30,8 @@ export default function JourneySummary({ summary }: Props) {
               <li key={m.name}>
                 <b>◆ {m.name}</b>
                 <span>
-                  {ymLabel(m.idx)} · <em>{m.monthsLeft === 0 ? '이번 달' : `${m.monthsLeft}개월 남음`}</em>
+                  {ymLabel(Math.floor(m.pos))} {m.half ? '중순' : '초'} ·{' '}
+                  <em>{m.monthsLeft < 1 ? '이번 달' : `${m.monthsLeft}개월 남음`}</em>
                 </span>
               </li>
             ))}

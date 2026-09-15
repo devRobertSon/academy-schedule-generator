@@ -265,7 +265,7 @@ export interface TrackPlan {
   phases: Phase[];
   milestones: Milestone[];
 }
-const ym = (grade: Grade, month: number): YM => ({ grade, month });
+const ym = (grade: Grade, month: number, half = false): YM => ({ grade, month, half });
 export const TRACK_PLANS: Record<Track, TrackPlan> = {
   영재학교: {
     phases: [
@@ -275,8 +275,8 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '④ 총정리·면접', start: ym('중3', 9), end: ym('중3', 2) },
     ],
     milestones: [
-      { name: '영재학교 1차(지필)', at: ym('중3', 5) },
-      { name: '2차 캠프', at: ym('중3', 7) },
+      { name: '영재학교 2차 평가(지필)', at: ym('중3', 7, true) }, // 7월 중순
+      { name: '영재학교 3차 평가(면접)', at: ym('중3', 8) }, // 7월과 8월 사이
     ],
   },
   과학고: {
@@ -287,8 +287,8 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '④ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
     ],
     milestones: [
-      { name: '과학고 서류', at: ym('중3', 9) },
-      { name: '과학고 면접', at: ym('중3', 11) },
+      { name: '과학고 면담 평가(인성)', at: ym('중3', 10, true) }, // 10월 중순
+      { name: '과학고 면접 평가(수과학)', at: ym('중3', 11, true) }, // 11월 중순
     ],
   },
   국제고: {
@@ -297,7 +297,7 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
       { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
     ],
-    milestones: [{ name: '국제고 면접', at: ym('중3', 12) }],
+    milestones: [{ name: '국제고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
   },
   외고: {
     phases: [

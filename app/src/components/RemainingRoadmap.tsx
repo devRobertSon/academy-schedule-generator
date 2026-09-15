@@ -8,7 +8,6 @@ import {
   TrackPlan,
   courseColor,
   endPos,
-  gmIndex,
   gradeOfIndex,
   monthOfIndex,
   monthToSeason,
@@ -403,11 +402,11 @@ export default function RemainingRoadmap({
         </text>
         <rect x={LABEL_W} y={PHASE_H} width={cols * COL_W} height={MS_H} fill="#FAFCFE" stroke={LINE} strokeWidth={0.5} />
         {plan.milestones
-          .map((m) => ({ m, idx: gmIndex(m.at.grade, m.at.month) }))
-          .filter(({ idx }) => idx >= axisStart && idx <= axisEnd)
-          .sort((a, b) => a.idx - b.idx)
-          .map(({ m, idx }, i) => {
-            const x = xOf(idx + 0.5);
+          .map((m) => ({ m, pos: startPos(m.at) }))
+          .filter(({ pos }) => pos >= axisStart && pos <= axisEnd + 1)
+          .sort((a, b) => a.pos - b.pos)
+          .map(({ m, pos }, i) => {
+            const x = xOf(pos); // 중순이면 달 가운데, 아니면 달 시작 경계
             const cy = PHASE_H + MS_H / 2;
             // 가까운 시험끼리 라벨이 겹치지 않도록 위/아래 번갈아 배치
             const labelY = i % 2 === 0 ? cy - 7 : cy + 13;
@@ -416,7 +415,7 @@ export default function RemainingRoadmap({
                 <line x1={x} y1={AXIS_Y} x2={x} y2={chartH} stroke={NAVY} strokeWidth={1} strokeDasharray="2 4" opacity={0.45} />
                 <rect x={x - 5} y={cy - 5} width={10} height={10} transform={`rotate(45 ${x} ${cy})`} fill="#fff" stroke={NAVY} strokeWidth={2} />
                 <text x={x + 9} y={labelY} fontSize={10} fontWeight={700} fill={NAVY}>
-                  {m.name} · {monthOfIndex(idx)}월
+                  {m.name} · {monthOfIndex(Math.floor(pos))}월 {m.at.half ? '중순' : '초'}
                 </text>
               </g>
             );
