@@ -7,7 +7,7 @@ export interface StoreData {
   plans: Record<Track, TrackPlan>;
 }
 
-const KEY = 'asg.store.v4';
+const KEY = 'asg.store.v5'; // v5: 파이널 수학/과학 중3 6월까지, 파이널 면접·과학고 파이널 면담/면접(특화 면접) 추가
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };
