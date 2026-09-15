@@ -3,6 +3,7 @@ import {
   COLORS,
   Course,
   GRADES,
+  Milestone,
   Subject,
   Track,
   TrackPlan,
@@ -21,7 +22,7 @@ const COL_W = 30;
 const HALF_W = COL_W / 2; // 0.5월
 const LABEL_W = 132;
 const PHASE_H = 30; // 단계(국면) 띠
-const MS_H = 38; // 시험 마일스톤 줄(라벨 위/아래 번갈아 배치)
+const MS_H = 26; // 시험 마일스톤 줄(◆만 표시, 이름은 마우스 오버 툴팁)
 const GRADE_H = 26;
 const MONTH_H = 20;
 const AXIS_Y = PHASE_H + MS_H;
@@ -38,6 +39,8 @@ const SEASON_TINT: Record<string, string> = {
   가을: '#EDF2FA',
   겨울: '#E8EFF9',
 };
+/** 글자 폭 대략 추정(한글 = fs, 영문·기호 = 0.6fs) */
+const estTextWidth = (s: string, fs: number) => s.split('').reduce((acc, ch) => acc + (/[ -~]/.test(ch) ? 0.6 : 1) * fs, 0);
 const INK = '#1A2340';
 const MUTED = '#5B6B85';
 const LINE = '#D9E3F0';
@@ -137,12 +140,18 @@ export default function RemainingRoadmap({
   const svgRef = useRef<SVGSVGElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
+  const [hoverMs, setHoverMs] = useState<number | null>(null); // 마우스를 올린 시험 ◆
 
   const axisStart = Math.min(atIdx, 59);
   const axisEnd = 59;
   const cols = Math.max(1, axisEnd - axisStart + 1);
   const chartW = LABEL_W + cols * COL_W;
   const xOf = (pos: number) => LABEL_W + (pos - axisStart) * COL_W;
+  const visibleMilestones = plan.milestones
+    .map((m) => ({ m, pos: startPos(m.at) }))
+    .filter(({ pos }) => pos >= axisStart && pos <= axisEnd + 1)
+    .sort((a, b) => a.pos - b.pos);
+  const msLabel = (m: Milestone, pos: number) => `${m.name} · ${monthOfIndex(Math.floor(pos))}월 ${m.at.half ? '중순' : '초'}`;
   // SVG가 카드 폭에 맞춰 확대되므로, 마우스 픽셀 이동량을 SVG 좌표로 환산
   const scaleOf = () => (svgRef.current ? svgRef.current.getBoundingClientRect().width / chartW : 1);
 
@@ -289,7 +298,7 @@ export default function RemainingRoadmap({
     const active = move?.id === b.id || resize?.id === b.id;
     // 과목 이름이 블록 폭을 넘으면 글자 크기를 줄여 맞춤(한글 1em, 영문/숫자 0.6em 가정)
     const name = b.course.name;
-    const estWidth = (fs: number) => name.split('').reduce((acc, ch) => acc + (/[ -~]/.test(ch) ? 0.6 : 1) * fs, 0);
+    const estWidth = (fs: number) => estTextWidth(name, fs);
     let fontSize = 13;
     while (fontSize > 8 && estWidth(fontSize) > w - 10) fontSize -= 0.5;
     return (
@@ -387,11 +396,11 @@ export default function RemainingRoadmap({
             return (
               <g key={`ph-${i}`}>
                 <rect x={x} y={0} width={w} height={PHASE_H} fill={PHASE_COLORS[i % PHASE_COLORS.length]} stroke="#fff" strokeWidth={1} />
-                {w >= 44 && (
-                  <text x={x + w / 2} y={PHASE_H / 2 + 4} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
-                    {p.name}
-                  </text>
-                )}
+                {/* 좁은 단계(1달 등)는 번호만 보이고 이름은 마우스 오버 툴팁 */}
+                <text x={x + w / 2} y={PHASE_H / 2 + 4} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
+                  {estTextWidth(p.name, 11) <= w - 6 ? p.name : p.name.slice(0, 1)}
+                </text>
+                <title>{p.name}</title>
               </g>
             );
           })}
@@ -401,25 +410,6 @@ export default function RemainingRoadmap({
           시험
         </text>
         <rect x={LABEL_W} y={PHASE_H} width={cols * COL_W} height={MS_H} fill="#FAFCFE" stroke={LINE} strokeWidth={0.5} />
-        {plan.milestones
-          .map((m) => ({ m, pos: startPos(m.at) }))
-          .filter(({ pos }) => pos >= axisStart && pos <= axisEnd + 1)
-          .sort((a, b) => a.pos - b.pos)
-          .map(({ m, pos }, i) => {
-            const x = xOf(pos); // 중순이면 달 가운데, 아니면 달 시작 경계
-            const cy = PHASE_H + MS_H / 2;
-            // 가까운 시험끼리 라벨이 겹치지 않도록 위/아래 번갈아 배치
-            const labelY = i % 2 === 0 ? cy - 7 : cy + 13;
-            return (
-              <g key={`ms-${i}`}>
-                <line x1={x} y1={AXIS_Y} x2={x} y2={chartH} stroke={NAVY} strokeWidth={1} strokeDasharray="2 4" opacity={0.45} />
-                <rect x={x - 5} y={cy - 5} width={10} height={10} transform={`rotate(45 ${x} ${cy})`} fill="#fff" stroke={NAVY} strokeWidth={2} />
-                <text x={x + 9} y={labelY} fontSize={10} fontWeight={700} fill={NAVY}>
-                  {m.name} · {monthOfIndex(Math.floor(pos))}월 {m.at.half ? '중순' : '초'}
-                </text>
-              </g>
-            );
-          })}
         {/* 오늘 배지 */}
         <rect x={xOf(atIdx)} y={PHASE_H + MS_H / 2 - 8} width={34} height={16} rx={8} fill={BRAND} />
         <text x={xOf(atIdx) + 17} y={PHASE_H + MS_H / 2 + 3.5} fontSize={9.5} fontWeight={700} fill="#fff" textAnchor="middle">
@@ -491,6 +481,55 @@ export default function RemainingRoadmap({
 
         {/* 현재 월 세로선 */}
         <line x1={xOf(atIdx)} y1={HEADER_H} x2={xOf(atIdx)} y2={chartH} stroke={BRAND} strokeWidth={1.5} strokeDasharray="4 3" />
+
+        {/* 시험 ◆ + 아래로 내려가는 점선 (이름은 마우스 오버 시 툴팁) */}
+        {visibleMilestones.map(({ m, pos }, i) => {
+          const x = xOf(pos); // 중순이면 달 가운데, 아니면 달 시작 경계
+          const cy = PHASE_H + MS_H / 2;
+          const hot = hoverMs === i;
+          return (
+            <g
+              key={`ms-${i}`}
+              style={{ cursor: 'help' }}
+              onMouseEnter={() => setHoverMs(i)}
+              onMouseLeave={() => setHoverMs((h) => (h === i ? null : h))}
+            >
+              <line x1={x} y1={cy + 6} x2={x} y2={chartH} stroke={NAVY} strokeWidth={1.5} strokeDasharray="4 3" opacity={hot ? 0.95 : 0.6} />
+              {/* 마우스 감지용 넓은 투명 영역 */}
+              <rect x={x - 9} y={cy - 9} width={18} height={18} fill="transparent" />
+              <rect
+                x={x - 6}
+                y={cy - 6}
+                width={12}
+                height={12}
+                transform={`rotate(45 ${x} ${cy})`}
+                fill={hot ? NAVY : '#fff'}
+                stroke={NAVY}
+                strokeWidth={2}
+              />
+              <title>{msLabel(m, pos)}</title>
+            </g>
+          );
+        })}
+        {hoverMs !== null && visibleMilestones[hoverMs] && (() => {
+          const { m, pos } = visibleMilestones[hoverMs];
+          const label = msLabel(m, pos);
+          const fs = 11;
+          const w = Math.ceil(estTextWidth(label, fs)) + 18;
+          const h = 24;
+          const cy = PHASE_H + MS_H / 2;
+          // 오른쪽으로 펼치되 차트를 벗어나면 왼쪽으로
+          const x0 = xOf(pos) + 12 + w <= chartW ? xOf(pos) + 12 : xOf(pos) - 12 - w;
+          const y0 = cy - h / 2;
+          return (
+            <g pointerEvents="none">
+              <rect x={x0} y={y0} width={w} height={h} rx={6} fill={NAVY} opacity={0.96} />
+              <text x={x0 + w / 2} y={y0 + h / 2 + 4} fontSize={fs} fontWeight={700} fill="#fff" textAnchor="middle">
+                {label}
+              </text>
+            </g>
+          );
+        })()}
       </svg>
 
       {popupCourse && (
