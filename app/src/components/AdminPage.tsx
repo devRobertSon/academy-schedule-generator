@@ -188,6 +188,14 @@ export default function AdminPage({ store, onChange }: Props) {
                         </option>
                       ))}
                     </select>
+                    <select
+                      value={c.start.half ? '1' : '0'}
+                      title="월초 / 월중순부터 (0.5월 단위)"
+                      onChange={(e) => updateCourse(c.id, { start: { ...c.start, half: e.target.value === '1' } })}
+                    >
+                      <option value="0">초</option>
+                      <option value="1">중순</option>
+                    </select>
                   </td>
                   <td className="ym">
                     <select value={c.end.grade} onChange={(e) => updateCourse(c.id, { end: { ...c.end, grade: e.target.value as Grade } })}>
@@ -203,6 +211,14 @@ export default function AdminPage({ store, onChange }: Props) {
                           {m}월
                         </option>
                       ))}
+                    </select>
+                    <select
+                      value={c.end.half ? '1' : '0'}
+                      title="월말 / 월중순까지 (0.5월 단위)"
+                      onChange={(e) => updateCourse(c.id, { end: { ...c.end, half: e.target.value === '1' } })}
+                    >
+                      <option value="0">말</option>
+                      <option value="1">중순</option>
                     </select>
                   </td>
                   <td>

@@ -5,12 +5,15 @@ import MonthlyTimetable from './components/MonthlyTimetable';
 import AdminPage from './components/AdminPage';
 import ExportBar from './components/ExportBar';
 import {
+  Course,
   MATH_GYO_SEQUENCE,
   SCI_GYO_HS_PARALLEL,
   SCI_GYO_MID_SEQUENCE,
   TimeSlot,
   Track,
   TRACKS,
+  posToEndYM,
+  posToStartYM,
 } from './data/roadmap';
 import { nowIndex, remainingCourses } from './lib/logic';
 import { StoreData, loadStore, saveStore } from './lib/store';
@@ -26,9 +29,29 @@ const DEFAULT_CONSULT: ConsultInfo = {
   sciIdx: SCI_GYO_MID_SEQUENCE.indexOf('중2-2학기'),
 };
 
+/** 저장/불러오기 파일 형식: 과정 데이터 + 이 학생의 상담 상태 */
+interface SavedFile {
+  version: 1;
+  courses: Course[];
+  consult?: {
+    info: ConsultInfo;
+    track: Track;
+    shifts: Record<string, number>;
+    slotOverrides: Record<string, TimeSlot>;
+    hidden: string[];
+    viewIdx: number;
+  };
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>('consult');
   const [store, setStoreState] = useState<StoreData>(() => loadStore());
+  const updateCourses = (fn: (courses: Course[]) => Course[]) =>
+    setStoreState((prev) => {
+      const next = { ...prev, courses: fn(prev.courses) };
+      saveStore(next);
+      return next;
+    });
   const setStore = (next: StoreData) => {
     setStoreState(next);
     saveStore(next);
@@ -38,9 +61,9 @@ export default function App() {
   const [track, setTrack] = useState<Track>('영재학교');
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
+  const [hidden, setHidden] = useState<string[]>([]);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
-  // 학생 진도 → 과목별 '현재(첫 미완료) 교과 블록' 인덱스
   const progress = useMemo(
     () => ({
       mathCurrent: info.mathIdx + 1,
@@ -49,20 +72,57 @@ export default function App() {
     [info.mathIdx, info.sciMode, info.sciIdx]
   );
   const [viewIdx, setViewIdx] = useState<number>(atIdx);
-
-  // 상담 월이 바뀌면 보는 달이 과거가 되지 않도록 클램프
   useEffect(() => {
     setViewIdx((v) => Math.min(59, Math.max(atIdx, v)));
   }, [atIdx]);
 
+  // 이 학생 로드맵에서 제거(✕)한 블록은 로드맵·시간표에서 제외
+  const visibleCourses = useMemo(() => store.courses.filter((c) => !hidden.includes(c.id)), [store.courses, hidden]);
+
   const exportRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const mathProgress = MATH_GYO_SEQUENCE[info.mathIdx];
   const sciSeq = info.sciMode === 'mid' ? SCI_GYO_MID_SEQUENCE : SCI_GYO_HS_PARALLEL;
   const sciProgress = sciSeq[info.sciIdx];
   const today = new Date().toLocaleDateString('ko-KR');
+  const remaining = remainingCourses(visibleCourses, track, atIdx, shifts);
 
-  const remaining = remainingCourses(store.courses, track, atIdx, shifts);
+  // ── 저장 / 불러오기 (JSON 파일) ─────────────────────────
+  const saveFile = () => {
+    const data: SavedFile = {
+      version: 1,
+      courses: store.courses,
+      consult: { info, track, shifts, slotOverrides, hidden, viewIdx },
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `상담_${info.studentName || '학생'}_${track}_${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const loadFile = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as Partial<SavedFile>;
+      if (!Array.isArray(parsed.courses)) throw new Error('courses 배열이 없습니다');
+      setStore({ courses: parsed.courses });
+      const c = parsed.consult;
+      if (c) {
+        setInfo(c.info);
+        setTrack(c.track);
+        setShifts(c.shifts ?? {});
+        setSlotOverrides(c.slotOverrides ?? {});
+        setHidden(c.hidden ?? []);
+        setViewIdx(c.viewIdx ?? nowIndex(c.info.grade, c.info.month));
+      }
+      alert('불러왔습니다.');
+    } catch (e) {
+      alert('파일을 읽지 못했습니다: ' + (e as Error).message);
+    }
+  };
 
   return (
     <div className="app">
@@ -77,6 +137,23 @@ export default function App() {
               관리
             </button>
           </nav>
+          <div className="file-bar">
+            <button className="primary" onClick={saveFile}>
+              💾 저장
+            </button>
+            <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) loadFile(f);
+                e.target.value = '';
+              }}
+            />
+          </div>
         </div>
         <p>
           {page === 'consult'
@@ -131,18 +208,31 @@ export default function App() {
             <section className="card">
               <h2>
                 ① {track} 합격까지 남은 과목 ({remaining.length}개)
+                {hidden.length > 0 && (
+                  <button className="mini ghost no-print" style={{ marginLeft: 10 }} onClick={() => setHidden([])}>
+                    제거한 블록 {hidden.length}개 복원
+                  </button>
+                )}
               </h2>
               <p className="muted no-print">
-                막대를 좌우로 드래그하면 수강 시작 월을 옮길 수 있고, 월별 시간표에 바로 반영됩니다.
+                블록을 클릭하면 요일·시간·선생님을 편집하고 ✕로 제거할 수 있습니다. 몸통을 드래그하면 시기가 이동하고,
+                좌우 가장자리를 드래그하면 기간이 0.5월 단위로 늘어나거나 줄어들며 관리 탭에 반영됩니다.
               </p>
               <div className="roadmap-scroll">
                 <RemainingRoadmap
-                  courses={store.courses}
+                  courses={visibleCourses}
                   form={info}
                   track={track}
                   atIdx={atIdx}
                   shifts={shifts}
                   onShiftChange={(id, shift) => setShifts((s) => ({ ...s, [id]: shift }))}
+                  onCourseRange={(id, r) =>
+                    updateCourses((cs) =>
+                      cs.map((c) => (c.id === id ? { ...c, start: posToStartYM(r.startPos), end: posToEndYM(r.endPos) } : c))
+                    )
+                  }
+                  onCourseChange={(course) => updateCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
+                  onHide={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
                 />
               </div>
             </section>
@@ -153,7 +243,7 @@ export default function App() {
                 ◀ ▶로 달을 바꿔 매월 시간표를 확인하고, 블록을 드래그해 요일·시간을 조정하세요.
               </p>
               <MonthlyTimetable
-                courses={store.courses}
+                courses={visibleCourses}
                 progress={progress}
                 track={track}
                 atIdx={atIdx}
@@ -167,7 +257,7 @@ export default function App() {
           </div>
 
           <footer className="app-footer no-print">
-            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정 내용은 [관리] 탭에서 수정</small>
+            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정 내용은 [관리] 탭 또는 블록 클릭 팝업에서 수정</small>
           </footer>
         </>
       )}

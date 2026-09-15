@@ -60,6 +60,27 @@ export function ymLabel(idx: number): string {
   return `${gradeOfIndex(idx)} ${monthOfIndex(idx)}월`;
 }
 
+// ── 0.5월 단위 위치 ──────────────────────────────────────
+/** 시작 위치(월 인덱스, 0.5 단위). half=true면 그 달 중순부터 */
+export function startPos(ym: YM): number {
+  return gmIndex(ym.grade, ym.month) + (ym.half ? 0.5 : 0);
+}
+/** 종료 위치(배타적, 0.5 단위). half=true면 그 달 중순까지, 아니면 그 달 말까지 */
+export function endPos(ym: YM): number {
+  return gmIndex(ym.grade, ym.month) + (ym.half ? 0.5 : 1);
+}
+/** 시작 위치 → YM */
+export function posToStartYM(pos: number): YM {
+  const i = Math.max(0, Math.min(59, Math.floor(pos)));
+  return { grade: gradeOfIndex(i), month: monthOfIndex(i), half: pos - Math.floor(pos) >= 0.5 };
+}
+/** 종료 위치(배타적) → YM(포함) */
+export function posToEndYM(pos: number): YM {
+  const frac = pos - Math.floor(pos);
+  const i = Math.max(0, Math.min(59, frac >= 0.5 ? Math.floor(pos) : Math.floor(pos) - 1));
+  return { grade: gradeOfIndex(i), month: monthOfIndex(i), half: frac >= 0.5 };
+}
+
 export interface TimeSlot {
   day: Weekday;
   start: string;
@@ -68,6 +89,8 @@ export interface TimeSlot {
 export interface YM {
   grade: Grade;
   month: number;
+  /** true면 시작은 '그 달 중순부터', 종료는 '그 달 중순까지' (0.5월 단위) */
+  half?: boolean;
 }
 
 export interface Course {
@@ -101,8 +124,11 @@ export const TRACK_COURSES: Course[] = [
   { id: 'yj_hs_math_review', name: '고등수학 총정리', track: '영재학교', subject: '수학', type: '고등선행',
     start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '토', start: '10:00', end: '13:00' }], teacher: '김민수' },
   // 영재학교 · 과학
-  { id: 'yj_astro_genetics', name: '천체·유전 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 6 }, end: { grade: '중2', month: 11 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }], teacher: '정우성' },
+  // 천체·유전 특강은 각 2달로 분리
+  { id: 'yj_astro', name: '천체 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
+    start: { grade: '중2', month: 6 }, end: { grade: '중2', month: 7 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }], teacher: '정우성' },
+  { id: 'yj_genetics', name: '유전 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
+    start: { grade: '중2', month: 8 }, end: { grade: '중2', month: 9 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }], teacher: '정우성' },
   { id: 'yj_mid_adv_sci', name: '중등심화과학', track: '영재학교', subject: '과학', type: '영재학교입시',
     start: { grade: '중2', month: 12 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '금', start: '18:00', end: '20:00' }], teacher: '한지민' },
   { id: 'yj_final_sci', name: '영재 파이널 과학', track: '영재학교', subject: '과학', type: '영재학교입시',
