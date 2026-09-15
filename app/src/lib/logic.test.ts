@@ -60,11 +60,12 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
   const rem = remainingCourses(courses, '영재학교', atIdx);
   const names = rem.map((e) => e.course.name);
 
-  it('완료된 창의수학 1단계·천체 특강은 제외된다', () => {
+  it('완료된 창의수학 1단계·천체 특강은 제외되고, 예정인 유전 특강은 남는다', () => {
     expect(courseStatus(byId('yj_chang1'), atIdx)).toBe('완료');
     expect(names).not.toContain('창의수학 1단계');
-    expect(names).not.toContain('천체 특강'); // 중2 6~7월 → 완료
-    expect(names).toContain('유전 특강'); // 중2 8~9월 → 진행중
+    expect(names).not.toContain('천체 특강'); // 중2 7~8월 → 완료
+    expect(courseStatus(byId('yj_genetics'), atIdx)).toBe('예정'); // 중2 10~11월
+    expect(names).toContain('유전 특강');
   });
   it('KMO 4과목이 모두 남는다', () => {
     expect(names).toEqual(expect.arrayContaining(['KMO 대수', 'KMO 기하', 'KMO 정수', 'KMO 조합']));
@@ -135,11 +136,17 @@ describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', (
   it('그 달 진행 중인 과정 + 그 달에 배치된 교과 블록이 들어간다', () => {
     const labels = tt.blocks.map((b) => b.label);
     expect(labels).toContain('KMO 대수');
-    expect(labels).toContain('유전 특강');
-    expect(labels).not.toContain('천체 특강');
+    expect(labels).not.toContain('천체 특강'); // 7~8월 → 끝남
+    expect(labels).not.toContain('유전 특강'); // 10~11월 → 아직
     expect(labels).toContain('공통수학1');
     expect(labels).toContain('중3-1학기');
     expect(labels).not.toContain('공통수학2');
+  });
+  it('유전 특강은 중2 10월·11월 시간표에만 올라간다', () => {
+    const oct = buildMonthlyTimetable(courses, '영재학교', nowIndex('중2', 10), atIdx, {}, {}, PROGRESS);
+    const dec = buildMonthlyTimetable(courses, '영재학교', nowIndex('중2', 12), atIdx, {}, {}, PROGRESS);
+    expect(oct.blocks.map((b) => b.label)).toContain('유전 특강');
+    expect(dec.blocks.map((b) => b.label)).not.toContain('유전 특강');
   });
   it('담당 선생님이 블록에 포함된다', () => {
     expect(tt.blocks.find((b) => b.label === 'KMO 대수')!.teacher).toBe('이정훈');
