@@ -250,3 +250,69 @@ export const GYO_COURSES: Course[] = [
     '한지민'
   ),
 ];
+
+// ── 입시 여정 단계(국면)·시험 마일스톤 — 학교별, 관리 탭에서 편집 ──
+export interface Phase {
+  name: string;
+  start: YM;
+  end: YM;
+}
+export interface Milestone {
+  name: string;
+  at: YM;
+}
+export interface TrackPlan {
+  phases: Phase[];
+  milestones: Milestone[];
+}
+const ym = (grade: Grade, month: number, half = false): YM => ({ grade, month, half });
+export const TRACK_PLANS: Record<Track, TrackPlan> = {
+  영재학교: {
+    phases: [
+      { name: '① 기초·선행', start: ym('초5', 3), end: ym('중1', 2) },
+      { name: '② 심화·KMO', start: ym('중2', 3), end: ym('중2', 11) },
+      { name: '③ 파이널', start: ym('중2', 12), end: ym('중3', 8) },
+      { name: '④ 총정리·면접', start: ym('중3', 9), end: ym('중3', 2) },
+    ],
+    milestones: [
+      { name: '영재학교 2차 평가(지필)', at: ym('중3', 7, true) }, // 7월 중순
+      { name: '영재학교 3차 평가(면접)', at: ym('중3', 8) }, // 7월과 8월 사이
+    ],
+  },
+  과학고: {
+    phases: [
+      { name: '① 기초·선행', start: ym('초5', 3), end: ym('중2', 5) },
+      { name: '② 창의수학·심화', start: ym('중2', 6), end: ym('중3', 8) },
+      { name: '③ 면접 대비', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '④ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [
+      { name: '과학고 면담 평가(인성)', at: ym('중3', 10, true) }, // 10월 중순
+      { name: '과학고 면접 평가(수과학)', at: ym('중3', 11, true) }, // 11월 중순
+    ],
+  },
+  국제고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '국제고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
+  },
+  외고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '외고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
+  },
+  전사고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 통합과학·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '자사고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
+  },
+};

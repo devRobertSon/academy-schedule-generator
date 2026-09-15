@@ -4,10 +4,12 @@ import {
   Course,
   Grade,
   MATH_GYO_SEQUENCE,
+  Phase,
   SCI_GYO_SEQUENCE,
   Subject,
   TimeSlot,
   Track,
+  TrackPlan,
   endPos,
   gmIndex,
   startPos,
@@ -231,4 +233,61 @@ export function buildMonthlyTimetable(
     });
   }
   return { blocks, conflicts: detectConflicts(blocks) };
+}
+
+// ── 입시 여정 요약(지금 단계 / 다음 단계 / 시험) ─────────────
+export interface JourneySummary {
+  currentPhase?: Phase;
+  nowCourses: string[];
+  nextPhase?: Phase;
+  nextPhaseStartIdx?: number;
+  nextCourses: string[];
+  milestones: { name: string; pos: number; half: boolean; monthsLeft: number }[];
+}
+
+export function journeySummary(
+  courses: Course[],
+  plan: TrackPlan,
+  track: Track,
+  atIdx: number,
+  shifts: Record<string, number>,
+  progress: GyoProgress
+): JourneySummary {
+  const phases = [...plan.phases].sort((a, b) => startPos(a.start) - startPos(b.start));
+  const currentPhase = phases.find((p) => startPos(p.start) <= atIdx + 0.5 && endPos(p.end) - 0.5 >= atIdx);
+  const nextPhase = phases.find((p) => startPos(p.start) > atIdx + 0.5);
+
+  const rem = remainingCourses(courses, track, atIdx, shifts);
+  const nowSpec = rem.filter((e) => e.status === '진행중').map((e) => e.course.name);
+  const gyoNow = [
+    ...gyoLaneLayout(courses, '수학', progress.mathCurrent, atIdx, shifts),
+    ...gyoLaneLayout(courses, '과학', progress.sciCurrent, atIdx, shifts),
+  ]
+    .filter((e) => e.current)
+    .map((e) => e.course.name);
+  const nowCourses = Array.from(new Set([...nowSpec, ...gyoNow]));
+
+  let nextCourses: string[] = [];
+  if (nextPhase) {
+    const s = startPos(nextPhase.start);
+    const e = endPos(nextPhase.end) - 0.5;
+    nextCourses = Array.from(new Set(rem.filter((x) => x.startIdx >= s && x.startIdx <= e).map((x) => x.course.name)));
+  }
+
+  const milestones = plan.milestones
+    .map((m) => {
+      const pos = startPos(m.at); // 중순이면 x.5
+      return { name: m.name, pos, half: !!m.at.half, monthsLeft: pos - atIdx };
+    })
+    .filter((m) => m.monthsLeft >= 0)
+    .sort((a, b) => a.pos - b.pos);
+
+  return {
+    currentPhase,
+    nowCourses,
+    nextPhase,
+    nextPhaseStartIdx: nextPhase ? startPos(nextPhase.start) : undefined,
+    nextCourses,
+    milestones,
+  };
 }
