@@ -279,6 +279,11 @@ export default function RemainingRoadmap({
     const yTop = laneTop + b.level * ROW_H;
     const sel = selected === b.id;
     const active = move?.id === b.id || resize?.id === b.id;
+    // 과목 이름이 블록 폭을 넘으면 글자 크기를 줄여 맞춤(한글 1em, 영문/숫자 0.6em 가정)
+    const name = b.course.name;
+    const estWidth = (fs: number) => name.split('').reduce((acc, ch) => acc + (/[ -~]/.test(ch) ? 0.6 : 1) * fs, 0);
+    let fontSize = 13;
+    while (fontSize > 8 && estWidth(fontSize) > w - 10) fontSize -= 0.5;
     return (
       <g key={b.id}>
         <rect
@@ -293,17 +298,17 @@ export default function RemainingRoadmap({
           style={{ cursor: 'grab' }}
           onPointerDown={(ev) => startMove(ev, b)}
         />
-        {w >= 28 && (
+        {w >= 24 && (
           <text
             x={x + w / 2}
-            y={yTop + BAR_H / 2 + 4.5}
-            fontSize={w >= 70 ? 13 : 11}
+            y={yTop + BAR_H / 2 + fontSize * 0.35}
+            fontSize={fontSize}
             fill={b.text}
             textAnchor="middle"
             fontWeight={700}
             style={{ pointerEvents: 'none' }}
           >
-            {b.course.name}
+            {name}
           </text>
         )}
         {/* 좌우 가장자리: 기간 조절 */}
