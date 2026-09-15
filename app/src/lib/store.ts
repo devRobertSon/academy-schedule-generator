@@ -1,32 +1,19 @@
-// src/lib/store.ts — 과목/교과 설정 영속화(localStorage) + JSON 백업
-import { Course, GYO_PACE, TRACK_COURSES } from '../data/roadmap';
-
-/** 교과 진도 투영 속도(월/항목)만 보관. 교과 수업 자체는 '공통' 과정으로 관리. */
-export interface GyoConfig {
-  mathMonthsPerItem: number;
-  sciMonthsPerItem: number;
-}
+// src/lib/store.ts — 과정 데이터 영속화(localStorage) + JSON 백업
+import { Course, GYO_COURSES, TRACK_COURSES } from '../data/roadmap';
 
 export interface StoreData {
   courses: Course[];
-  gyo: GyoConfig;
 }
 
-const KEY = 'asg.store.v2';
+// 교과 블록이 일반 과정 행으로 바뀌어 저장 구조가 달라짐 → 키 갱신
+const KEY = 'asg.store.v3';
+
+function cloneCourse(c: Course): Course {
+  return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };
+}
 
 export function defaultStore(): StoreData {
-  return {
-    courses: TRACK_COURSES.map((c) => ({
-      ...c,
-      schedule: c.schedule.map((s) => ({ ...s })),
-      start: { ...c.start },
-      end: { ...c.end },
-    })),
-    gyo: {
-      mathMonthsPerItem: GYO_PACE.mathMonthsPerItem,
-      sciMonthsPerItem: GYO_PACE.sciMonthsPerItem,
-    },
-  };
+  return { courses: [...TRACK_COURSES, ...GYO_COURSES].map(cloneCourse) };
 }
 
 export function loadStore(): StoreData {
@@ -34,11 +21,7 @@ export function loadStore(): StoreData {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultStore();
     const parsed = JSON.parse(raw) as Partial<StoreData>;
-    const def = defaultStore();
-    return {
-      courses: Array.isArray(parsed.courses) ? (parsed.courses as Course[]) : def.courses,
-      gyo: { ...def.gyo, ...(parsed.gyo ?? {}) },
-    };
+    return { courses: Array.isArray(parsed.courses) ? (parsed.courses as Course[]) : defaultStore().courses };
   } catch {
     return defaultStore();
   }
@@ -65,12 +48,8 @@ export function exportStoreJson(data: StoreData): void {
 
 export function parseStoreJson(text: string): StoreData {
   const parsed = JSON.parse(text) as Partial<StoreData>;
-  const def = defaultStore();
   if (!Array.isArray(parsed.courses)) throw new Error('courses 배열이 없습니다');
-  return {
-    courses: parsed.courses as Course[],
-    gyo: { ...def.gyo, ...(parsed.gyo ?? {}) },
-  };
+  return { courses: parsed.courses as Course[] };
 }
 
 let _id = 0;

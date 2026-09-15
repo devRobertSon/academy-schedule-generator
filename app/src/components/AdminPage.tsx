@@ -99,9 +99,6 @@ export default function AdminPage({ store, onChange }: Props) {
     onChange(defaultStore());
   };
 
-  const gyo = store.gyo;
-  const setGyo = (patch: Partial<typeof gyo>) => onChange({ ...store, gyo: { ...gyo, ...patch } });
-
   return (
     <div className="admin">
       <div className="admin-toolbar no-print">
@@ -256,34 +253,11 @@ export default function AdminPage({ store, onChange }: Props) {
         </table>
       </div>
 
-      <h3>교과 진도 투영 속도</h3>
-      <p className="muted">
-        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵에서 단원 진도를
-        몇 개월 간격으로 펼쳐 보여줄지 설정합니다.
+      <p className="muted" style={{ marginTop: 10 }}>
+        교과(수학·과학) 블록(각 학기, 공통수학1~기하, 물리·화학)도 <b>트랙 = 공통</b> 과정으로 이 표에서 관리합니다.
+        공통 과정은 <b>시작~종료 길이가 로드맵 블록 개월수</b>가 되고, 실제 위치는 학생 진도 기준으로 오늘부터
+        순서대로 배치(드래그로 이동)됩니다. 세션·담당쌤은 그 블록이 배치된 달의 시간표에 올라갑니다.
       </p>
-      <div className="gyo-config">
-        <fieldset>
-          <legend>투영 속도(개월/단원)</legend>
-          <label>
-            수학
-            <input
-              type="number"
-              min={1}
-              value={gyo.mathMonthsPerItem}
-              onChange={(e) => setGyo({ mathMonthsPerItem: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-          <label>
-            과학
-            <input
-              type="number"
-              min={1}
-              value={gyo.sciMonthsPerItem}
-              onChange={(e) => setGyo({ sciMonthsPerItem: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-        </fieldset>
-      </div>
     </div>
   );
 }

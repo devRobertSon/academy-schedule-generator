@@ -37,11 +37,17 @@ export default function App() {
   const [info, setInfo] = useState<ConsultInfo>(DEFAULT_CONSULT);
   const [track, setTrack] = useState<Track>('영재학교');
   const [shifts, setShifts] = useState<Record<string, number>>({});
-  const [gyoShift, setGyoShift] = useState<{ math: number; sci: number }>({ math: 0, sci: 0 });
-  const [gyoBlockStarts, setGyoBlockStarts] = useState<Record<string, number>>({});
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
+  // 학생 진도 → 과목별 '현재(첫 미완료) 교과 블록' 인덱스
+  const progress = useMemo(
+    () => ({
+      mathCurrent: info.mathIdx + 1,
+      sciCurrent: info.sciMode === 'mid' ? info.sciIdx + 1 : SCI_GYO_MID_SEQUENCE.length,
+    }),
+    [info.mathIdx, info.sciMode, info.sciIdx]
+  );
   const [viewIdx, setViewIdx] = useState<number>(atIdx);
 
   // 상담 월이 바뀌면 보는 달이 과거가 되지 않도록 클램프
@@ -132,16 +138,11 @@ export default function App() {
               <div className="roadmap-scroll">
                 <RemainingRoadmap
                   courses={store.courses}
-                  gyo={store.gyo}
                   form={info}
                   track={track}
                   atIdx={atIdx}
                   shifts={shifts}
                   onShiftChange={(id, shift) => setShifts((s) => ({ ...s, [id]: shift }))}
-                  gyoShift={gyoShift}
-                  onGyoShiftChange={(subject, shift) => setGyoShift((g) => ({ ...g, [subject]: shift }))}
-                  gyoBlockStarts={gyoBlockStarts}
-                  onGyoBlockMove={(name, startIdx) => setGyoBlockStarts((s) => ({ ...s, [name]: startIdx }))}
                 />
               </div>
             </section>
@@ -153,6 +154,7 @@ export default function App() {
               </p>
               <MonthlyTimetable
                 courses={store.courses}
+                progress={progress}
                 track={track}
                 atIdx={atIdx}
                 viewIdx={viewIdx}
