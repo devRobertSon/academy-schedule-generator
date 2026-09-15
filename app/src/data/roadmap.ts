@@ -305,7 +305,7 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
       { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
     ],
-    milestones: [{ name: '외고 면접', at: ym('중3', 12) }],
+    milestones: [{ name: '외고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
   },
   전사고: {
     phases: [
@@ -313,6 +313,6 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '② 통합과학·면접', start: ym('중3', 9), end: ym('중3', 11) },
       { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
     ],
-    milestones: [{ name: '전사고 면접', at: ym('중3', 12) }],
+    milestones: [{ name: '자사고 면접 평가', at: ym('중3', 12, true) }], // 12월 중순
   },
 };
