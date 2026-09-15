@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import ConsultForm, { ConsultInfo } from './components/ConsultForm';
 import RemainingRoadmap from './components/RemainingRoadmap';
 import MonthlyTimetable from './components/MonthlyTimetable';
+import JourneySummary from './components/JourneySummary';
 import AdminPage from './components/AdminPage';
 import ExportBar from './components/ExportBar';
 import {
@@ -11,11 +12,12 @@ import {
   TimeSlot,
   Track,
   TRACKS,
+  TrackPlan,
   posToEndYM,
   posToStartYM,
 } from './data/roadmap';
-import { nowIndex, remainingCourses } from './lib/logic';
-import { StoreData, loadStore, saveStore } from './lib/store';
+import { journeySummary, nowIndex, remainingCourses } from './lib/logic';
+import { StoreData, loadStore, mergePlans, saveStore } from './lib/store';
 
 type Page = 'consult' | 'admin';
 
@@ -27,10 +29,11 @@ const DEFAULT_CONSULT: ConsultInfo = {
   sciIdx: SCI_GYO_SEQUENCE.indexOf('중2-2학기'),
 };
 
-/** 저장/불러오기 파일 형식: 과정 데이터 + 이 학생의 상담 상태 */
+/** 저장/불러오기 파일 형식: 과정·여정 데이터 + 이 학생의 상담 상태 */
 interface SavedFile {
   version: 1;
   courses: Course[];
+  plans?: Record<Track, TrackPlan>;
   consult?: {
     info: ConsultInfo;
     track: Track;
@@ -76,6 +79,11 @@ export default function App() {
   }, [atIdx]);
 
   const visibleCourses = useMemo(() => store.courses.filter((c) => !hidden.includes(c.id)), [store.courses, hidden]);
+  const plan = store.plans[track];
+  const journey = useMemo(
+    () => journeySummary(visibleCourses, plan, track, atIdx, shifts, progress),
+    [visibleCourses, plan, track, atIdx, shifts, progress]
+  );
 
   const exportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -84,12 +92,14 @@ export default function App() {
   const sciProgress = SCI_GYO_SEQUENCE[info.sciIdx];
   const today = new Date().toLocaleDateString('ko-KR');
   const remaining = remainingCourses(visibleCourses, track, atIdx, shifts);
+  const firstExam = journey.milestones[0];
 
   // ── 저장 / 불러오기 (JSON 파일) ─────────────────────────
   const saveFile = () => {
     const data: SavedFile = {
       version: 1,
       courses: store.courses,
+      plans: store.plans,
       consult: { info, track, shifts, slotOverrides, hidden, viewIdx },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -105,7 +115,7 @@ export default function App() {
     try {
       const parsed = JSON.parse(await file.text()) as Partial<SavedFile>;
       if (!Array.isArray(parsed.courses)) throw new Error('courses 배열이 없습니다');
-      setStore({ courses: parsed.courses });
+      setStore({ courses: parsed.courses, plans: mergePlans(parsed.plans) });
       const c = parsed.consult;
       if (c) {
         setInfo(c.info);
@@ -144,56 +154,77 @@ export default function App() {
               관리
             </button>
           </nav>
-          <div className="file-bar">
-            <button className="primary" onClick={saveFile}>
-              💾 저장
-            </button>
-            <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
-            {page === 'consult' && <ExportBar targetRef={exportRef} />}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) loadFile(f);
-                e.target.value = '';
-              }}
-            />
-          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) loadFile(f);
+              e.target.value = '';
+            }}
+          />
+          {page === 'admin' && (
+            <div className="file-bar">
+              <button className="primary" onClick={saveFile}>
+                💾 저장
+              </button>
+              <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
+            </div>
+          )}
         </div>
       </header>
 
       {page === 'admin' ? (
         <section className="card">
           <p className="muted">
-            과정의 개설 월·기간·요일·시작시간·담당 선생님을 편집합니다. 브라우저에 자동 저장되며 JSON으로 백업할 수 있습니다.
+            과정의 개설 월·기간·요일·시작시간·담당 선생님과 학교별 입시 단계·시험을 편집합니다. 브라우저에 자동 저장되며 JSON으로 백업할 수 있습니다.
           </p>
           <AdminPage store={store} onChange={setStore} />
         </section>
       ) : (
         <>
-          {/* 상담 정보 칩 스트립 */}
-          <div className="chip-bar no-print">
-            <span className="who">{info.studentName ? `${info.studentName} 학생` : '상담 학생'}</span>
-            <ConsultForm value={info} onChange={setInfo} />
-            <label className="chip target">
-              <span className="k">목표</span>
-              <select value={track} onChange={(e) => setTrack(e.target.value as Track)}>
-                {TRACKS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {hidden.length > 0 && (
-              <button className="chip ghost" onClick={() => setHidden([])}>
-                제거한 블록 {hidden.length}개 복원
+          {/* 히어로: 큰 제목 + 입력 칩 + 버튼 */}
+          <section className="hero no-print">
+            <div className="hero-l">
+              <div className="eyebrow">Roadmap · {track}</div>
+              <h2>
+                {info.studentName ? `${info.studentName} 학생의 ` : ''}
+                {track} 로드맵
+              </h2>
+              <div className="chip-bar">
+                <ConsultForm value={info} onChange={setInfo} />
+                <label className="chip target">
+                  <span className="k">목표</span>
+                  <select value={track} onChange={(e) => setTrack(e.target.value as Track)}>
+                    {TRACKS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {firstExam && (
+                  <span className="chip stat" title={`${firstExam.name}까지`}>
+                    ◆ {firstExam.name}까지 <b>{firstExam.monthsLeft}개월</b>
+                  </span>
+                )}
+                {hidden.length > 0 && (
+                  <button className="chip ghost" onClick={() => setHidden([])}>
+                    제거한 블록 {hidden.length}개 복원
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="hero-r">
+              <button className="primary" onClick={saveFile}>
+                💾 저장
               </button>
-            )}
-          </div>
+              <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
+              <ExportBar targetRef={exportRef} />
+            </div>
+          </section>
 
           <div className="export-region" ref={exportRef}>
             {/* 인쇄/PNG용 요약 헤더 */}
@@ -204,21 +235,27 @@ export default function App() {
               </h2>
               <p>
                 현재 {info.grade} {info.month}월 · 수학 진도 {mathProgress} 완료 · 과학 진도 {sciProgress} 완료
+                {firstExam ? ` · ${firstExam.name}까지 ${firstExam.monthsLeft}개월` : ''}
                 <span className="gen-date"> · 상담일 {today}</span>
               </p>
             </div>
 
-            <section className="card hero">
-              <h2>
-                <span className="num">1</span>
-                {track} 합격까지 남은 과목
-                <span className="muted">· {remaining.length}개</span>
-              </h2>
+            <section className="card hero-card">
+              <div className="card-head">
+                <span className="eyebrow">Roadmap</span>
+                <h2>
+                  {track} 합격까지 남은 과목
+                  <span className="muted">
+                    · {remaining.length}개 과정 · {plan.phases.length}단계
+                  </span>
+                </h2>
+              </div>
               <div className="roadmap-scroll">
                 <RemainingRoadmap
                   courses={visibleCourses}
                   form={info}
                   track={track}
+                  plan={plan}
                   atIdx={atIdx}
                   shifts={shifts}
                   onShiftChange={(id, shift) => setShifts((s) => ({ ...s, [id]: shift }))}
@@ -231,12 +268,14 @@ export default function App() {
                   onHide={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
                 />
               </div>
+              <JourneySummary summary={journey} />
             </section>
 
             <section className="card">
-              <h2>
-                <span className="num">2</span>월별 시간표
-              </h2>
+              <div className="card-head">
+                <span className="eyebrow">Timetable</span>
+                <h2>월별 시간표</h2>
+              </div>
               <MonthlyTimetable
                 courses={visibleCourses}
                 progress={progress}
@@ -252,7 +291,7 @@ export default function App() {
           </div>
 
           <footer className="app-footer no-print">
-            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정 내용은 [관리] 탭 또는 블록 클릭 팝업에서 수정</small>
+            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정·단계·시험은 [관리] 탭 또는 블록 클릭 팝업에서 수정</small>
           </footer>
         </>
       )}

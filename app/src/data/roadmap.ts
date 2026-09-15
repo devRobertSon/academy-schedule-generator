@@ -250,3 +250,69 @@ export const GYO_COURSES: Course[] = [
     '한지민'
   ),
 ];
+
+// ── 입시 여정 단계(국면)·시험 마일스톤 — 학교별, 관리 탭에서 편집 ──
+export interface Phase {
+  name: string;
+  start: YM;
+  end: YM;
+}
+export interface Milestone {
+  name: string;
+  at: YM;
+}
+export interface TrackPlan {
+  phases: Phase[];
+  milestones: Milestone[];
+}
+const ym = (grade: Grade, month: number): YM => ({ grade, month });
+export const TRACK_PLANS: Record<Track, TrackPlan> = {
+  영재학교: {
+    phases: [
+      { name: '① 기초·선행', start: ym('초5', 3), end: ym('중1', 2) },
+      { name: '② 심화·KMO', start: ym('중2', 3), end: ym('중2', 11) },
+      { name: '③ 파이널', start: ym('중2', 12), end: ym('중3', 8) },
+      { name: '④ 총정리·면접', start: ym('중3', 9), end: ym('중3', 2) },
+    ],
+    milestones: [
+      { name: '영재학교 1차(지필)', at: ym('중3', 5) },
+      { name: '2차 캠프', at: ym('중3', 7) },
+    ],
+  },
+  과학고: {
+    phases: [
+      { name: '① 기초·선행', start: ym('초5', 3), end: ym('중2', 5) },
+      { name: '② 창의수학·심화', start: ym('중2', 6), end: ym('중3', 8) },
+      { name: '③ 면접 대비', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '④ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [
+      { name: '과학고 서류', at: ym('중3', 9) },
+      { name: '과학고 면접', at: ym('중3', 11) },
+    ],
+  },
+  국제고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '국제고 면접', at: ym('중3', 12) }],
+  },
+  외고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 자소서·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '외고 면접', at: ym('중3', 12) }],
+  },
+  전사고: {
+    phases: [
+      { name: '① 기초·내신', start: ym('초5', 3), end: ym('중3', 8) },
+      { name: '② 통합과학·면접', start: ym('중3', 9), end: ym('중3', 11) },
+      { name: '③ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
+    ],
+    milestones: [{ name: '전사고 면접', at: ym('중3', 12) }],
+  },
+};

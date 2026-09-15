@@ -786,3 +786,215 @@ select {
     align-self: center;
   }
 }
+
+/* ── A안: 히어로 + 여정 요약 ───────────────── */
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 20px 14px;
+  margin: 0 0 12px;
+  box-shadow: var(--shadow);
+}
+.hero-l {
+  min-width: 0;
+  flex: 1;
+}
+.hero h2 {
+  margin: 2px 0 10px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.hero .chip-bar {
+  margin: 0;
+}
+.hero-r {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: none;
+}
+.hero-r button,
+.hero-r .export-inline button {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.hero-r button.primary {
+  background: var(--royal);
+  color: #fff;
+  border-color: var(--royal);
+}
+.eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sky);
+  font-weight: 700;
+}
+.card-head {
+  margin-bottom: 10px;
+}
+.card-head h2 {
+  margin: 0;
+}
+.chip.stat {
+  background: #fff;
+  border-color: var(--navy);
+  color: var(--navy);
+  padding-right: 12px;
+}
+.chip.stat b {
+  color: var(--royal);
+}
+
+.journey-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.jn {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sky);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--tint-2);
+  min-width: 0;
+}
+.jn.next {
+  border-left-color: var(--royal);
+}
+.jn.exam {
+  border-left-color: var(--navy);
+}
+.jn-k {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.jn > b {
+  display: block;
+  font-size: 15px;
+  margin: 2px 0 4px;
+  color: var(--ink);
+}
+.jn p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.jn ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.jn li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 12.5px;
+}
+.jn li:last-child {
+  border-bottom: none;
+}
+.jn li b {
+  font-size: 13px;
+}
+.jn li span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.jn li em {
+  font-style: normal;
+  color: var(--royal);
+  font-weight: 700;
+}
+
+/* ── 관리: 단계·시험 편집 ─────────────────── */
+.admin-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+}
+.admin-plans fieldset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  margin: 0;
+}
+.admin-plans legend {
+  font-weight: 800;
+  color: var(--blue-text);
+  padding: 0 6px;
+}
+.plan-group {
+  margin-bottom: 8px;
+}
+.plan-title {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  margin: 4px 0;
+}
+.plan-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 3px 0;
+  flex-wrap: wrap;
+}
+.plan-row input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  width: 150px;
+}
+.plan-row .ym select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 4px;
+  font-size: 12px;
+  background: #fff;
+}
+.plan-row span {
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .journey-next {
+    grid-template-columns: 1fr;
+  }
+  .hero {
+    flex-direction: column;
+  }
+  .hero-r {
+    justify-content: flex-start;
+  }
+}
+@media print {
+  .journey-next {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

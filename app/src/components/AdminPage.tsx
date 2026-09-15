@@ -5,10 +5,14 @@ import {
   CourseType,
   Grade,
   GRADES,
+  Milestone,
+  Phase,
   Subject,
   Track,
   TRACKS,
+  TrackPlan,
   Weekday,
+  YM,
 } from '../data/roadmap';
 import {
   StoreData,
@@ -98,6 +102,28 @@ export default function AdminPage({ store, onChange }: Props) {
     if (!confirm('모든 과목 설정을 기본값으로 되돌릴까요?')) return;
     onChange(defaultStore());
   };
+
+  // ── 학교별 여정 단계·시험 편집 ────────────────────────
+  const setPlan = (t: Track, fn: (p: TrackPlan) => TrackPlan) =>
+    onChange({ ...store, plans: { ...store.plans, [t]: fn(store.plans[t]) } });
+  const YMSel = ({ value, onChange: oc }: { value: YM; onChange: (v: YM) => void }) => (
+    <span className="ym">
+      <select value={value.grade} onChange={(e) => oc({ ...value, grade: e.target.value as Grade })}>
+        {GRADES.map((g) => (
+          <option key={g} value={g}>
+            {g}
+          </option>
+        ))}
+      </select>
+      <select value={value.month} onChange={(e) => oc({ ...value, month: Number(e.target.value) })}>
+        {MONTHS.map((m) => (
+          <option key={m} value={m}>
+            {m}월
+          </option>
+        ))}
+      </select>
+    </span>
+  );
 
   return (
     <div className="admin">
@@ -270,10 +296,78 @@ export default function AdminPage({ store, onChange }: Props) {
       </div>
 
       <p className="muted" style={{ marginTop: 10 }}>
-        교과(수학·과학) 블록(각 학기, 공통수학1~기하, 물리·화학)도 <b>트랙 = 공통</b> 과정으로 이 표에서 관리합니다.
+        교과(수학·과학) 블록(각 학기, 공통수학1~기하, 통합과학·물리·화학)도 <b>트랙 = 공통</b> 과정으로 이 표에서 관리합니다.
         공통 과정은 <b>시작~종료 길이가 로드맵 블록 개월수</b>가 되고, 실제 위치는 학생 진도 기준으로 오늘부터
         순서대로 배치(드래그로 이동)됩니다. 세션·담당쌤은 그 블록이 배치된 달의 시간표에 올라갑니다.
       </p>
+
+      <h3 style={{ marginTop: 22 }}>입시 여정 단계 · 시험 (학교별)</h3>
+      <p className="muted">
+        로드맵 상단의 <b>단계 띠</b>와 <b>◆ 시험 마일스톤</b>, 로드맵 아래 "지금 단계 / 다음 단계 / 시험" 카드에 쓰입니다.
+      </p>
+      <div className="admin-plans">
+        {TRACKS.map((t) => {
+          const p = store.plans[t];
+          return (
+            <fieldset key={t}>
+              <legend>{t}</legend>
+              <div className="plan-group">
+                <div className="plan-title">단계</div>
+                {p.phases.map((ph: Phase, i: number) => (
+                  <div className="plan-row" key={i}>
+                    <input
+                      value={ph.name}
+                      onChange={(e) =>
+                        setPlan(t, (pp) => ({ ...pp, phases: pp.phases.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) }))
+                      }
+                    />
+                    <YMSel value={ph.start} onChange={(v) => setPlan(t, (pp) => ({ ...pp, phases: pp.phases.map((x, j) => (j === i ? { ...x, start: v } : x)) }))} />
+                    <span>~</span>
+                    <YMSel value={ph.end} onChange={(v) => setPlan(t, (pp) => ({ ...pp, phases: pp.phases.map((x, j) => (j === i ? { ...x, end: v } : x)) }))} />
+                    <button className="del" title="단계 삭제" onClick={() => setPlan(t, (pp) => ({ ...pp, phases: pp.phases.filter((_, j) => j !== i) }))}>
+                      −
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="mini"
+                  onClick={() =>
+                    setPlan(t, (pp) => ({
+                      ...pp,
+                      phases: [...pp.phases, { name: `${pp.phases.length + 1}단계`, start: { grade: '중3', month: 3 }, end: { grade: '중3', month: 8 } }],
+                    }))
+                  }
+                >
+                  + 단계
+                </button>
+              </div>
+              <div className="plan-group">
+                <div className="plan-title">시험(마일스톤)</div>
+                {p.milestones.map((m: Milestone, i: number) => (
+                  <div className="plan-row" key={i}>
+                    <input
+                      value={m.name}
+                      onChange={(e) =>
+                        setPlan(t, (pp) => ({ ...pp, milestones: pp.milestones.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) }))
+                      }
+                    />
+                    <YMSel value={m.at} onChange={(v) => setPlan(t, (pp) => ({ ...pp, milestones: pp.milestones.map((x, j) => (j === i ? { ...x, at: v } : x)) }))} />
+                    <button className="del" title="시험 삭제" onClick={() => setPlan(t, (pp) => ({ ...pp, milestones: pp.milestones.filter((_, j) => j !== i) }))}>
+                      −
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="mini"
+                  onClick={() => setPlan(t, (pp) => ({ ...pp, milestones: [...pp.milestones, { name: '시험', at: { grade: '중3', month: 5 } }] }))}
+                >
+                  + 시험
+                </button>
+              </div>
+            </fieldset>
+          );
+        })}
+      </div>
     </div>
   );
 }

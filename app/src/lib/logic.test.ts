@@ -7,6 +7,7 @@ import {
   courseStatus,
   detectConflicts,
   gyoLaneLayout,
+  journeySummary,
   nowIndex,
   projectGyo,
   remainingCourses,
@@ -14,7 +15,7 @@ import {
   shiftedRange,
 } from './logic';
 
-const courses = defaultStore().courses;
+const { courses, plans } = defaultStore();
 const byId = (id: string) => courses.find((c) => c.id === id)!;
 // 중2 9월 · 수학 중3-2학기 완료(현재=공통수학1, idx 6) · 과학 중2-2학기 완료(현재=중3-1학기, idx 4)
 const PROGRESS = { mathCurrent: 6, sciCurrent: 4 };
@@ -195,5 +196,26 @@ describe('교과 투영(projectGyo)', () => {
     expect(proj[0]).toMatchObject({ done: true, current: false, startIdx: 39 });
     expect(proj[1]).toMatchObject({ done: false, current: true, startIdx: 42 });
     expect(proj[2]).toMatchObject({ startIdx: 45 });
+  });
+});
+
+describe('입시 여정 요약(journeySummary) — 영재학교 중2 9월', () => {
+  const atIdx = nowIndex('중2', 9); // 42
+  const j = journeySummary(courses, plans['영재학교'], '영재학교', atIdx, {}, PROGRESS);
+
+  it('지금 단계는 ② 심화·KMO, 다음 단계는 ③ 파이널(중2 12월~)', () => {
+    expect(j.currentPhase?.name).toBe('② 심화·KMO');
+    expect(j.nextPhase?.name).toBe('③ 파이널');
+    expect(j.nextPhaseStartIdx).toBe(gmIndex('중2', 12));
+  });
+  it('지금 진행 중인 과정에 KMO와 현재 교과 블록이 들어간다', () => {
+    expect(j.nowCourses).toEqual(expect.arrayContaining(['KMO 대수', '공통수학1', '중3-1학기']));
+  });
+  it('다음 단계에 시작하는 과정을 보여준다', () => {
+    expect(j.nextCourses).toContain('영재 파이널 수학');
+  });
+  it('시험 마일스톤과 남은 개월을 계산한다', () => {
+    expect(j.milestones[0].name).toBe('영재학교 1차(지필)');
+    expect(j.milestones[0].monthsLeft).toBe(gmIndex('중3', 5) - atIdx); // 8
   });
 });

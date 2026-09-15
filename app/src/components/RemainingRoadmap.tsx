@@ -5,8 +5,10 @@ import {
   GRADES,
   Subject,
   Track,
+  TrackPlan,
   courseColor,
   endPos,
+  gmIndex,
   gradeOfIndex,
   monthOfIndex,
   monthToSeason,
@@ -19,9 +21,13 @@ import CourseEditPopup from './CourseEditPopup';
 const COL_W = 30;
 const HALF_W = COL_W / 2; // 0.5월
 const LABEL_W = 132;
+const PHASE_H = 30; // 단계(국면) 띠
+const MS_H = 38; // 시험 마일스톤 줄(라벨 위/아래 번갈아 배치)
 const GRADE_H = 26;
 const MONTH_H = 20;
-const HEADER_H = GRADE_H + MONTH_H;
+const AXIS_Y = PHASE_H + MS_H;
+const HEADER_H = AXIS_Y + GRADE_H + MONTH_H;
+const PHASE_COLORS = ['#5FB8EE', '#2F8FD9', '#1F4DAF', '#1D2260', '#141848'];
 const BAR_H = 34;
 const ROW_H = 42;
 const PAD = 10;
@@ -44,6 +50,8 @@ interface Props {
   courses: Course[];
   form: ConsultInfo;
   track: Track;
+  /** 학교별 여정 단계·시험 마일스톤 */
+  plan: TrackPlan;
   atIdx: number;
   shifts: Record<string, number>;
   onShiftChange: (courseId: string, shift: number) => void;
@@ -112,6 +120,7 @@ export default function RemainingRoadmap({
   courses,
   form,
   track,
+  plan,
   atIdx,
   shifts,
   onShiftChange,
@@ -360,8 +369,62 @@ export default function RemainingRoadmap({
         aria-label={`${track} 남은 과정 로드맵`}
       >
         {/* 왼쪽 위: 오늘 기준 표시 */}
-        <text x={10} y={GRADE_H / 2 + 5} fontSize={11} fontWeight={700} fill={BRAND}>
+        <text x={10} y={AXIS_Y + GRADE_H / 2 + 5} fontSize={11} fontWeight={700} fill={BRAND}>
           오늘 {gradeOfIndex(atIdx)} {monthOfIndex(atIdx)}월 →
+        </text>
+
+        {/* 단계(국면) 띠 */}
+        <text x={10} y={PHASE_H / 2 + 4} fontSize={10} fontWeight={700} fill={MUTED}>
+          단계
+        </text>
+        {[...plan.phases]
+          .sort((a, b) => startPos(a.start) - startPos(b.start))
+          .map((p, i) => {
+            const ps = Math.max(axisStart, startPos(p.start));
+            const pe = Math.min(axisEnd + 1, endPos(p.end));
+            if (pe <= ps) return null;
+            const x = xOf(ps);
+            const w = (pe - ps) * COL_W;
+            return (
+              <g key={`ph-${i}`}>
+                <rect x={x} y={0} width={w} height={PHASE_H} fill={PHASE_COLORS[i % PHASE_COLORS.length]} stroke="#fff" strokeWidth={1} />
+                {w >= 44 && (
+                  <text x={x + w / 2} y={PHASE_H / 2 + 4} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">
+                    {p.name}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+        {/* 시험 마일스톤 줄 */}
+        <text x={10} y={PHASE_H + MS_H / 2 + 4} fontSize={10} fontWeight={700} fill={MUTED}>
+          시험
+        </text>
+        <rect x={LABEL_W} y={PHASE_H} width={cols * COL_W} height={MS_H} fill="#FAFCFE" stroke={LINE} strokeWidth={0.5} />
+        {plan.milestones
+          .map((m) => ({ m, idx: gmIndex(m.at.grade, m.at.month) }))
+          .filter(({ idx }) => idx >= axisStart && idx <= axisEnd)
+          .sort((a, b) => a.idx - b.idx)
+          .map(({ m, idx }, i) => {
+            const x = xOf(idx + 0.5);
+            const cy = PHASE_H + MS_H / 2;
+            // 가까운 시험끼리 라벨이 겹치지 않도록 위/아래 번갈아 배치
+            const labelY = i % 2 === 0 ? cy - 7 : cy + 13;
+            return (
+              <g key={`ms-${i}`}>
+                <line x1={x} y1={AXIS_Y} x2={x} y2={chartH} stroke={NAVY} strokeWidth={1} strokeDasharray="2 4" opacity={0.45} />
+                <rect x={x - 5} y={cy - 5} width={10} height={10} transform={`rotate(45 ${x} ${cy})`} fill="#fff" stroke={NAVY} strokeWidth={2} />
+                <text x={x + 9} y={labelY} fontSize={10} fontWeight={700} fill={NAVY}>
+                  {m.name} · {monthOfIndex(idx)}월
+                </text>
+              </g>
+            );
+          })}
+        {/* 오늘 배지 */}
+        <rect x={xOf(atIdx)} y={PHASE_H + MS_H / 2 - 8} width={34} height={16} rx={8} fill={BRAND} />
+        <text x={xOf(atIdx) + 17} y={PHASE_H + MS_H / 2 + 3.5} fontSize={9.5} fontWeight={700} fill="#fff" textAnchor="middle">
+          오늘
         </text>
 
         {/* 월 배경 틴트 */}
@@ -382,8 +445,8 @@ export default function RemainingRoadmap({
           const w = (gEnd - gStart) * COL_W;
           return (
             <g key={`grade-${g}`}>
-              <rect x={x} y={0} width={w} height={GRADE_H} fill="#E9F3FC" stroke={LINE} strokeWidth={0.5} />
-              <text x={x + w / 2} y={GRADE_H / 2 + 4} fontSize={12} fontWeight={700} fill="#0B4E9F" textAnchor="middle">
+              <rect x={x} y={AXIS_Y} width={w} height={GRADE_H} fill="#E9F3FC" stroke={LINE} strokeWidth={0.5} />
+              <text x={x + w / 2} y={AXIS_Y + GRADE_H / 2 + 4} fontSize={12} fontWeight={700} fill="#0B4E9F" textAnchor="middle">
                 {g}
               </text>
             </g>
@@ -396,8 +459,8 @@ export default function RemainingRoadmap({
           const season = monthToSeason(monthOfIndex(idx));
           return (
             <g key={`m-${k}`}>
-              <rect x={xOf(idx)} y={GRADE_H} width={COL_W} height={MONTH_H} fill={SEASON_TINT[season]} />
-              <text x={xOf(idx) + COL_W / 2} y={GRADE_H + MONTH_H / 2 + 3} fontSize={8} fill={MUTED} textAnchor="middle">
+              <rect x={xOf(idx)} y={AXIS_Y + GRADE_H} width={COL_W} height={MONTH_H} fill={SEASON_TINT[season]} />
+              <text x={xOf(idx) + COL_W / 2} y={AXIS_Y + GRADE_H + MONTH_H / 2 + 3} fontSize={8} fill={MUTED} textAnchor="middle">
                 {monthOfIndex(idx)}
               </text>
             </g>
