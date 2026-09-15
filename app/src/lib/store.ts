@@ -1,12 +1,9 @@
 // src/lib/store.ts — 과목/교과 설정 영속화(localStorage) + JSON 백업
-import { Course, GYO_BLOCK_MONTHS, GYO_PACE, TRACK_COURSES } from '../data/roadmap';
+import { Course, GYO_BLOCK_DEFAULT_MONTHS, TRACK_COURSES } from '../data/roadmap';
 
-/** 교과 블록 개월수(과목별 중등/고등). 교과 수업 자체는 '공통' 과정으로 관리. */
+/** 교과 블록별 개월수(키 = `${subject}:${name}`). 교과 수업 자체는 '공통' 과정으로 관리. */
 export interface GyoConfig {
-  mathMidMonths: number; // 수학 중등 학기 블록 길이
-  mathAdvMonths: number; // 수학 고등(공통수학1~) 블록 길이
-  sciMidMonths: number; // 과학 중등 학기 블록 길이
-  sciAdvMonths: number; // 과학 고등(물리·화학) 블록 길이
+  blockMonths: Record<string, number>;
 }
 
 export interface StoreData {
@@ -24,12 +21,7 @@ export function defaultStore(): StoreData {
       start: { ...c.start },
       end: { ...c.end },
     })),
-    gyo: {
-      mathMidMonths: GYO_PACE.mathMonthsPerItem,
-      mathAdvMonths: GYO_BLOCK_MONTHS,
-      sciMidMonths: GYO_PACE.sciMonthsPerItem,
-      sciAdvMonths: GYO_BLOCK_MONTHS,
-    },
+    gyo: { blockMonths: { ...GYO_BLOCK_DEFAULT_MONTHS } },
   };
 }
 

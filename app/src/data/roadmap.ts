@@ -162,3 +162,34 @@ export const GYO_PACE = { mathMonthsPerItem: 3, sciMonthsPerItem: 3 }; // 교과
 /** 교과(공통) 과정 id */
 export const GYO_MATH_ID = 'gyo_math';
 export const GYO_SCI_ID = 'gyo_sci';
+
+/** 로드맵 교과 블록 목록(블록마다 개월수를 따로 지정). 키 = `${subject}:${name}` */
+export interface GyoBlockDef {
+  key: string;
+  subject: 'math' | 'sci';
+  name: string;
+  defaultMonths: number;
+}
+export const GYO_BLOCKS: GyoBlockDef[] = [
+  ...MATH_GYO_SEQUENCE.map((name, i) => ({
+    key: `math:${name}`,
+    subject: 'math' as const,
+    name,
+    defaultMonths: i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS,
+  })),
+  ...SCI_GYO_MID_SEQUENCE.map((name) => ({
+    key: `sci:${name}`,
+    subject: 'sci' as const,
+    name,
+    defaultMonths: GYO_PACE.sciMonthsPerItem,
+  })),
+  ...SCI_GYO_ADVANCED.map((name) => ({
+    key: `sci:${name}`,
+    subject: 'sci' as const,
+    name,
+    defaultMonths: GYO_BLOCK_MONTHS,
+  })),
+];
+export const GYO_BLOCK_DEFAULT_MONTHS: Record<string, number> = Object.fromEntries(
+  GYO_BLOCKS.map((b) => [b.key, b.defaultMonths])
+);

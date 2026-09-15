@@ -3,6 +3,7 @@ import {
   COURSE_TYPES,
   Course,
   CourseType,
+  GYO_BLOCKS,
   Grade,
   GRADES,
   Subject,
@@ -256,55 +257,33 @@ export default function AdminPage({ store, onChange }: Props) {
         </table>
       </div>
 
-      <h3>교과 블록 개월수</h3>
+      <h3>교과 블록 개월수 (블록별)</h3>
       <p className="muted">
-        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵에서 각 교과
-        블록(학기·고등 과목)을 몇 개월 길이로 표시할지 설정합니다. 블록은 로드맵에서 각각 자유롭게 드래그해
-        배치할 수 있습니다.
+        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵의 각 교과
+        블록을 몇 개월 길이로 표시할지 <b>블록마다 따로</b> 설정합니다. 블록은 로드맵에서 각각 드래그해 배치할 수
+        있습니다.
       </p>
       <div className="gyo-config">
-        <fieldset>
-          <legend>수학 교과 (개월)</legend>
-          <label>
-            중등 학기 블록
-            <input
-              type="number"
-              min={1}
-              value={gyo.mathMidMonths}
-              onChange={(e) => setGyo({ mathMidMonths: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-          <label>
-            고등 블록(공통수학1~기하)
-            <input
-              type="number"
-              min={1}
-              value={gyo.mathAdvMonths}
-              onChange={(e) => setGyo({ mathAdvMonths: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>과학 교과 (개월)</legend>
-          <label>
-            중등 학기 블록
-            <input
-              type="number"
-              min={1}
-              value={gyo.sciMidMonths}
-              onChange={(e) => setGyo({ sciMidMonths: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-          <label>
-            고등 블록(물리·화학)
-            <input
-              type="number"
-              min={1}
-              value={gyo.sciAdvMonths}
-              onChange={(e) => setGyo({ sciAdvMonths: Math.max(1, Number(e.target.value)) })}
-            />
-          </label>
-        </fieldset>
+        {(['math', 'sci'] as const).map((subject) => (
+          <fieldset key={subject}>
+            <legend>{subject === 'math' ? '수학 교과' : '과학 교과'} (개월)</legend>
+            {GYO_BLOCKS.filter((b) => b.subject === subject).map((b) => (
+              <label key={b.key}>
+                {b.name}
+                <input
+                  type="number"
+                  min={1}
+                  value={gyo.blockMonths[b.key] ?? b.defaultMonths}
+                  onChange={(e) =>
+                    setGyo({
+                      blockMonths: { ...gyo.blockMonths, [b.key]: Math.max(1, Number(e.target.value)) },
+                    })
+                  }
+                />
+              </label>
+            ))}
+          </fieldset>
+        ))}
       </div>
     </div>
   );

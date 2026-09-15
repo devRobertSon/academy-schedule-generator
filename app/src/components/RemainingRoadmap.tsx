@@ -3,7 +3,7 @@ import {
   COLORS,
   Course,
   GRADES,
-  MATH_GYO_ADV_START,
+  GYO_BLOCK_DEFAULT_MONTHS,
   MATH_GYO_SEQUENCE,
   SCI_GYO_ADVANCED,
   SCI_GYO_MID_SEQUENCE,
@@ -161,12 +161,14 @@ export default function RemainingRoadmap({
       .filter((b) => b.start + b.dur - 1 >= axisStart);
   };
 
+  const monthsOf = (key: string) => gyo.blockMonths[key] ?? GYO_BLOCK_DEFAULT_MONTHS[key] ?? 3;
+
   const mathCurrent = Math.min(form.mathIdx + 1, MATH_GYO_SEQUENCE.length);
-  const mathDurs = MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? gyo.mathMidMonths : gyo.mathAdvMonths));
+  const mathDurs = MATH_GYO_SEQUENCE.map((name) => monthsOf(`math:${name}`));
   const mathLane = stackBlocks(buildLane('math', MATH_GYO_SEQUENCE, mathDurs, mathCurrent));
 
   const sciNames = [...SCI_GYO_MID_SEQUENCE, ...SCI_GYO_ADVANCED];
-  const sciDurs = sciNames.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? gyo.sciMidMonths : gyo.sciAdvMonths));
+  const sciDurs = sciNames.map((name) => monthsOf(`sci:${name}`));
   const sciCurrent =
     form.sciMode === 'mid' ? Math.min(form.sciIdx + 1, SCI_GYO_MID_SEQUENCE.length) : SCI_GYO_MID_SEQUENCE.length;
   const sciLane = stackBlocks(buildLane('sci', sciNames, sciDurs, sciCurrent));
