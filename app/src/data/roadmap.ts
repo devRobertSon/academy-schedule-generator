@@ -29,10 +29,10 @@ export const TRACKS: Track[] = ['영재학교', '과학고', '국제고', '외�
 export const ACADEMIC_MONTHS: number[] = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2]; // 학사연도 월 순서
 
 export const COLORS = {
-  수학: { fill: '#85B7EB', text: '#042C53' },
-  과학: { fill: '#F0997B', text: '#4A1B0C' },
-  면접: { fill: '#AFA9EC', text: '#26215C' },
-  교과: { fill: '#D3D1C7', text: '#2C2C2A' },
+  수학: { fill: '#8CC4F2', text: '#0B3D7A' },
+  과학: { fill: '#F7B267', text: '#5A2E00' },
+  면접: { fill: '#B4ACF0', text: '#2B2470' },
+  교과: { fill: '#CFD9E8', text: '#1F2F4D' },
 };
 
 export function academicMonthIndex(month: number): number {
