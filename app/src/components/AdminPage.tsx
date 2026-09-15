@@ -3,7 +3,6 @@ import {
   COURSE_TYPES,
   Course,
   CourseType,
-  GYO_BLOCKS,
   Grade,
   GRADES,
   Subject,
@@ -99,9 +98,6 @@ export default function AdminPage({ store, onChange }: Props) {
     if (!confirm('모든 과목 설정을 기본값으로 되돌릴까요?')) return;
     onChange(defaultStore());
   };
-
-  const gyo = store.gyo;
-  const setGyo = (patch: Partial<typeof gyo>) => onChange({ ...store, gyo: { ...gyo, ...patch } });
 
   return (
     <div className="admin">
@@ -257,34 +253,11 @@ export default function AdminPage({ store, onChange }: Props) {
         </table>
       </div>
 
-      <h3>교과 블록 개월수 (블록별)</h3>
-      <p className="muted">
-        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵의 각 교과
-        블록을 몇 개월 길이로 표시할지 <b>블록마다 따로</b> 설정합니다. 블록은 로드맵에서 각각 드래그해 배치할 수
-        있습니다.
+      <p className="muted" style={{ marginTop: 10 }}>
+        교과(수학·과학) 블록(각 학기, 공통수학1~기하, 물리·화학)도 <b>트랙 = 공통</b> 과정으로 이 표에서 관리합니다.
+        공통 과정은 <b>시작~종료 길이가 로드맵 블록 개월수</b>가 되고, 실제 위치는 학생 진도 기준으로 오늘부터
+        순서대로 배치(드래그로 이동)됩니다. 세션·담당쌤은 그 블록이 배치된 달의 시간표에 올라갑니다.
       </p>
-      <div className="gyo-config">
-        {(['math', 'sci'] as const).map((subject) => (
-          <fieldset key={subject}>
-            <legend>{subject === 'math' ? '수학 교과' : '과학 교과'} (개월)</legend>
-            {GYO_BLOCKS.filter((b) => b.subject === subject).map((b) => (
-              <label key={b.key}>
-                {b.name}
-                <input
-                  type="number"
-                  min={1}
-                  value={gyo.blockMonths[b.key] ?? b.defaultMonths}
-                  onChange={(e) =>
-                    setGyo({
-                      blockMonths: { ...gyo.blockMonths, [b.key]: Math.max(1, Number(e.target.value)) },
-                    })
-                  }
-                />
-              </label>
-            ))}
-          </fieldset>
-        ))}
-      </div>
     </div>
   );
 }

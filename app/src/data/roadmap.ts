@@ -138,11 +138,7 @@ export const TRACK_COURSES: Course[] = [
   // 전사고
   { id: 'js_int_sci1', name: '통합과학1', track: '전사고', subject: '과학', type: '고등선행',
     start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 2 }, schedule: [{ day: '목', start: '17:00', end: '19:00' }] },
-  // 교과(공통) — 모든 목표 학교 학생이 공통으로 수강. 과목별 수업으로 분리.
-  { id: 'gyo_math', name: '수학 교과', track: '공통', subject: '수학', type: '중등선행',
-    start: { grade: '초5', month: 3 }, end: { grade: '중3', month: 2 }, schedule: [{ day: '수', start: '16:00', end: '18:00' }, { day: '토', start: '14:00', end: '16:00' }], teacher: '박서연' },
-  { id: 'gyo_sci', name: '과학 교과', track: '공통', subject: '과학', type: '중등선행',
-    start: { grade: '초5', month: 3 }, end: { grade: '중3', month: 2 }, schedule: [{ day: '금', start: '16:00', end: '18:00' }], teacher: '한지민' },
+  // 교과(공통) 블록은 아래 GYO_COURSES 에서 생성(트랙 '공통', 과정 표에서 관리)
 ];
 
 /** 교과(공통) — 교육과정 "순서" 배열. 학생 진도 = 인덱스. 앱에서 현재 월에 투영. */
@@ -159,37 +155,62 @@ export const GYO_BLOCK_MONTHS = 6; // 개별 교과 블록 길이(개월)
 
 export const GYO_PACE = { mathMonthsPerItem: 3, sciMonthsPerItem: 3 }; // 교과 진도 투영 속도(월/항목)
 
-/** 교과(공통) 과정 id */
-export const GYO_MATH_ID = 'gyo_math';
-export const GYO_SCI_ID = 'gyo_sci';
+/** 과학 교과 전체 순서(중등 학기 + 고등) */
+export const SCI_GYO_ALL = [...SCI_GYO_MID_SEQUENCE, ...SCI_GYO_ADVANCED];
 
-/** 로드맵 교과 블록 목록(블록마다 개월수를 따로 지정). 키 = `${subject}:${name}` */
-export interface GyoBlockDef {
-  key: string;
-  subject: 'math' | 'sci';
-  name: string;
-  defaultMonths: number;
+function ymOf(idx: number): YM {
+  return { grade: gradeOfIndex(idx), month: monthOfIndex(idx) };
 }
-export const GYO_BLOCKS: GyoBlockDef[] = [
-  ...MATH_GYO_SEQUENCE.map((name, i) => ({
-    key: `math:${name}`,
-    subject: 'math' as const,
-    name,
-    defaultMonths: i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS,
-  })),
-  ...SCI_GYO_MID_SEQUENCE.map((name) => ({
-    key: `sci:${name}`,
-    subject: 'sci' as const,
-    name,
-    defaultMonths: GYO_PACE.sciMonthsPerItem,
-  })),
-  ...SCI_GYO_ADVANCED.map((name) => ({
-    key: `sci:${name}`,
-    subject: 'sci' as const,
-    name,
-    defaultMonths: GYO_BLOCK_MONTHS,
-  })),
+
+/**
+ * 교과(공통) 블록을 일반 과정으로 생성 — 과정 표에서 시작/종료(=개월수)·세션·담당쌤을 편집.
+ * 시작/종료는 블록 길이(개월)로만 쓰이고, 실제 위치는 학생 진도 기준 오늘부터 순서대로 배치된다.
+ */
+function makeGyoCourses(
+  prefix: string,
+  subject: Subject,
+  names: string[],
+  durs: number[],
+  types: CourseType[],
+  sessions: TimeSlot[],
+  teacher: string
+): Course[] {
+  let acc = 0;
+  return names.map((name, i) => {
+    const start = Math.min(59, acc);
+    const end = Math.min(59, acc + durs[i] - 1);
+    acc += durs[i];
+    return {
+      id: `${prefix}_${i}`,
+      name,
+      track: '공통',
+      subject,
+      type: types[i],
+      start: ymOf(start),
+      end: ymOf(end),
+      schedule: sessions.map((s) => ({ ...s })),
+      teacher,
+    };
+  });
+}
+
+export const GYO_COURSES: Course[] = [
+  ...makeGyoCourses(
+    'gyo_math',
+    '수학',
+    MATH_GYO_SEQUENCE,
+    MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS)),
+    MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? '중등선행' : '고등선행')),
+    [{ day: '수', start: '16:00', end: '18:00' }, { day: '토', start: '14:00', end: '16:00' }],
+    '박서연'
+  ),
+  ...makeGyoCourses(
+    'gyo_sci',
+    '과학',
+    SCI_GYO_ALL,
+    SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? GYO_PACE.sciMonthsPerItem : GYO_BLOCK_MONTHS)),
+    SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? '중등선행' : '고등선행')),
+    [{ day: '금', start: '16:00', end: '18:00' }],
+    '한지민'
+  ),
 ];
-export const GYO_BLOCK_DEFAULT_MONTHS: Record<string, number> = Object.fromEntries(
-  GYO_BLOCKS.map((b) => [b.key, b.defaultMonths])
-);

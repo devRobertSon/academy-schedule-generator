@@ -6,6 +6,7 @@ import {
   buildMonthlyTimetable,
   courseStatus,
   detectConflicts,
+  gyoLaneLayout,
   nowIndex,
   projectGyo,
   remainingCourses,
@@ -15,6 +16,8 @@ import {
 
 const courses = defaultStore().courses;
 const byId = (id: string) => courses.find((c) => c.id === id)!;
+// 중2 9월 · 수학 중3-2학기 완료(현재=공통수학1, idx 6) · 과학 중2-2학기 완료(현재=중3-1학기, idx 4)
+const PROGRESS = { mathCurrent: 6, sciCurrent: 4 };
 
 describe('월 인덱스', () => {
   it('중2 9월 → 42, 중1 6월 → 27', () => {
@@ -39,9 +42,9 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
   it('KMO 4과목이 모두 남는다', () => {
     expect(names).toEqual(expect.arrayContaining(['KMO 대수', 'KMO 기하', 'KMO 정수', 'KMO 조합']));
   });
-  it('공통(교과) 과정은 로드맵 남은 과목에 포함되지 않는다', () => {
-    expect(names).not.toContain('수학 교과');
-    expect(names).not.toContain('과학 교과');
+  it('공통(교과) 과정은 특화 남은 과목에 포함되지 않는다', () => {
+    expect(names).not.toContain('공통수학1');
+    expect(names).not.toContain('물리');
   });
   it('시작 월 순으로 정렬된다', () => {
     const starts = rem.map((e) => e.startIdx);
@@ -52,8 +55,7 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
 describe('남은 과목 — 중1 6월 영재학교(전 과정 남음)', () => {
   it('영재학교 11개 과정(KMO 4분할 포함)이 모두 남는다', () => {
     const atIdx = nowIndex('중1', 6);
-    const rem = remainingCourses(courses, '영재학교', atIdx);
-    expect(rem.length).toBe(11);
+    expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(11);
   });
 });
 
@@ -66,43 +68,76 @@ describe('수강 월 이동(shift)', () => {
     expect(moved.endIdx).toBe(base.endIdx + 3);
   });
   it('shift로 상태가 예정으로 바뀔 수 있다', () => {
-    const atIdx = nowIndex('중2', 9); // 42
+    const atIdx = nowIndex('중2', 9);
     const c = byId('yj_kmo_algebra'); // 36~53 → 진행중
     expect(courseStatus(c, atIdx, 0)).toBe('진행중');
     expect(courseStatus(c, atIdx, 12)).toBe('예정');
   });
 });
 
+describe('교과 블록 배치(gyoLaneLayout) — 중2 9월', () => {
+  const atIdx = nowIndex('중2', 9); // 42
+
+  it('완료한 블록은 빠지고 현재 블록부터 오늘에서 순서대로 일렬', () => {
+    const lane = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, {});
+    expect(lane.map((e) => e.course.name).slice(0, 3)).toEqual(['공통수학1', '공통수학2', '대수']);
+    expect(lane[0].startIdx).toBe(42);
+    expect(lane[0].endIdx).toBe(47); // 기본 6개월
+    expect(lane[1].startIdx).toBe(48); // 바로 뒤에 붙음(일렬)
+    expect(lane[0].current).toBe(true);
+    expect(lane.map((e) => e.course.name)).not.toContain('중3-2학기');
+  });
+  it('과정의 시작~종료 길이가 블록 개월수가 된다', () => {
+    const lane = gyoLaneLayout(courses, '과학', PROGRESS.sciCurrent, atIdx, {});
+    const first = lane[0];
+    expect(first.course.name).toBe('중3-1학기');
+    expect(first.endIdx - first.startIdx + 1).toBe(3); // 중등 기본 3개월
+  });
+  it('shift로 블록을 따로 옮기면 겹칠 수 있다', () => {
+    const lane = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, { gyo_math_7: -6 });
+    const a = lane.find((e) => e.course.name === '공통수학1')!;
+    const b = lane.find((e) => e.course.name === '공통수학2')!;
+    expect(b.startIdx).toBe(a.startIdx); // 공통수학2를 앞으로 당겨 공통수학1과 겹침
+  });
+  it('오늘보다 앞으로는 못 간다', () => {
+    const lane = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, { gyo_math_6: -100 });
+    expect(lane.find((e) => e.course.name === '공통수학1')!.startIdx).toBe(42);
+  });
+});
+
 describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', () => {
   const atIdx = nowIndex('중2', 9);
-  const tt = buildMonthlyTimetable(courses, '영재학교', atIdx, {}, {});
+  const tt = buildMonthlyTimetable(courses, '영재학교', atIdx, atIdx, {}, {}, PROGRESS);
 
-  it('그 달 진행 중인 과정 + 공통 교과가 들어간다', () => {
+  it('그 달 진행 중인 과정 + 그 달에 배치된 교과 블록이 들어간다', () => {
     const labels = tt.blocks.map((b) => b.label);
     expect(labels).toContain('KMO 대수');
     expect(labels).toContain('천체·유전 특강');
-    expect(labels).toContain('수학 교과'); // 공통 교과 과정
-    expect(labels).toContain('과학 교과');
+    expect(labels).toContain('공통수학1'); // 현재 수학 교과 블록
+    expect(labels).toContain('중3-1학기'); // 현재 과학 교과 블록
+    expect(labels).not.toContain('공통수학2'); // 다음 블록은 아직
   });
   it('담당 선생님이 블록에 포함된다', () => {
-    const kmo = tt.blocks.find((b) => b.label === 'KMO 대수')!;
-    expect(kmo.teacher).toBe('이정훈');
-    const sci = tt.blocks.find((b) => b.label === '과학 교과')!;
-    expect(sci.teacher).toBe('한지민');
+    expect(tt.blocks.find((b) => b.label === 'KMO 대수')!.teacher).toBe('이정훈');
+    expect(tt.blocks.find((b) => b.label === '공통수학1')!.teacher).toBe('박서연');
   });
-  it('주 2회 과정(수학 교과)은 세션마다 블록이 생긴다', () => {
-    const mathBlocks = tt.blocks.filter((b) => b.courseId === 'gyo_math');
-    expect(mathBlocks.length).toBe(2); // 수 + 토
-    expect(mathBlocks.map((b) => b.slot.day).sort()).toEqual(['수', '토']);
+  it('주 2회 과정(공통수학1)은 세션마다 블록이 생긴다', () => {
+    const blocks = tt.blocks.filter((b) => b.courseId === 'gyo_math_6');
+    expect(blocks.length).toBe(2);
+    expect(blocks.map((b) => b.slot.day).sort()).toEqual(['수', '토']);
   });
   it('드래그(slotOverride)는 해당 세션만 바꾼다', () => {
-    const moved = buildMonthlyTimetable(courses, '영재학교', atIdx, {}, {
-      [sessionKey('gyo_math', 0)]: { day: '월', start: '19:00', end: '21:00' },
-    });
-    const s0 = moved.blocks.find((b) => b.key === sessionKey('gyo_math', 0))!;
-    const s1 = moved.blocks.find((b) => b.key === sessionKey('gyo_math', 1))!;
-    expect(s0.slot.day).toBe('월');
-    expect(s1.slot.day).toBe('토'); // 다른 세션은 그대로
+    const moved = buildMonthlyTimetable(courses, '영재학교', atIdx, atIdx, {}, {
+      [sessionKey('gyo_math_6', 0)]: { day: '월', start: '19:00', end: '21:00' },
+    }, PROGRESS);
+    expect(moved.blocks.find((b) => b.key === sessionKey('gyo_math_6', 0))!.slot.day).toBe('월');
+    expect(moved.blocks.find((b) => b.key === sessionKey('gyo_math_6', 1))!.slot.day).toBe('토');
+  });
+  it('다음 달로 넘어가면 교과 블록 배치에 따라 바뀐다', () => {
+    const later = buildMonthlyTimetable(courses, '영재학교', atIdx + 6, atIdx, {}, {}, PROGRESS);
+    const labels = later.blocks.map((b) => b.label);
+    expect(labels).toContain('공통수학2'); // 42+6=48 부터 공통수학2
+    expect(labels).not.toContain('공통수학1');
   });
 });
 
@@ -123,7 +158,7 @@ describe('충돌 감지', () => {
   });
 });
 
-describe('교과 투영', () => {
+describe('교과 투영(projectGyo)', () => {
   it('현재/완료/예정과 위치', () => {
     const proj = projectGyo(['a', 'b', 'c', 'd'], 1, 42, 3);
     expect(proj[0]).toMatchObject({ done: true, current: false, startIdx: 39 });
