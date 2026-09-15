@@ -33,11 +33,12 @@ export default function ExportBar({ targetRef }: Props) {
   };
 
   return (
-    <div className="export-bar no-print">
-      <span className="export-title">최종본 내보내기</span>
-      <button onClick={handlePrint}>🖨 인쇄 / PDF</button>
-      <button onClick={handlePng} disabled={busy}>
-        {busy ? '저장 중…' : '🖼 이미지(PNG) 저장'}
+    <div className="export-inline no-print">
+      <button className="sky" onClick={handlePrint} title="인쇄 / PDF로 저장">
+        🖨 인쇄 / PDF
+      </button>
+      <button onClick={handlePng} disabled={busy} title="결과 영역을 PNG로 저장">
+        {busy ? '저장 중…' : '🖼 PNG'}
       </button>
     </div>
   );

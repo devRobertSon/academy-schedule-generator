@@ -16,23 +16,29 @@ import { gyoLaneLayout, remainingCourses } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
 import CourseEditPopup from './CourseEditPopup';
 
-const COL_W = 26;
+const COL_W = 30;
 const HALF_W = COL_W / 2; // 0.5월
 const LABEL_W = 132;
-const GRADE_H = 24;
+const GRADE_H = 26;
 const MONTH_H = 20;
 const HEADER_H = GRADE_H + MONTH_H;
-const BAR_H = 30;
-const ROW_H = 38;
+const BAR_H = 32;
+const ROW_H = 40;
 const PAD = 10;
 const EDGE = 7; // 좌우 가장자리(기간 조절) 폭(px)
 
 const SEASON_TINT: Record<string, string> = {
-  봄: '#EEF4EC',
-  여름: '#FBF1E9',
-  가을: '#F4F0E7',
-  겨울: '#ECF0F6',
+  봄: '#EEF6FD',
+  여름: '#F6FAFE',
+  가을: '#EDF2FA',
+  겨울: '#E8EFF9',
 };
+const INK = '#1A2340';
+const MUTED = '#5B6B85';
+const LINE = '#D9E3F0';
+const BRAND = '#1F4DAF';
+const NAVY = '#1D2260';
+const ACCENT = '#E2574C';
 
 interface Props {
   courses: Course[];
@@ -120,6 +126,7 @@ export default function RemainingRoadmap({
   const resizeRef = useRef<ResizeState | null>(null);
   resizeRef.current = resize;
   const movedRef = useRef(false);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
 
@@ -128,6 +135,8 @@ export default function RemainingRoadmap({
   const cols = Math.max(1, axisEnd - axisStart + 1);
   const chartW = LABEL_W + cols * COL_W;
   const xOf = (pos: number) => LABEL_W + (pos - axisStart) * COL_W;
+  // SVG가 카드 폭에 맞춰 확대되므로, 마우스 픽셀 이동량을 SVG 좌표로 환산
+  const scaleOf = () => (svgRef.current ? svgRef.current.getBoundingClientRect().width / chartW : 1);
 
   // 특화 과정(목표 학교) — 과목별 레인
   const rem = remainingCourses(courses, track, atIdx, shifts);
@@ -186,7 +195,7 @@ export default function RemainingRoadmap({
     const onMove = (e: PointerEvent) => {
       const d = moveRef.current;
       if (!d) return;
-      const delta = snap(e.clientX - d.startX);
+      const delta = snap((e.clientX - d.startX) / scaleOf());
       if (delta !== 0) movedRef.current = true;
       const minShift = atIdx - d.baseStart; // 과거로는 못 감
       const maxShift = 60 - (d.baseEnd + 0.5); // 중3 2월 이내
@@ -215,7 +224,7 @@ export default function RemainingRoadmap({
     const onMove = (e: PointerEvent) => {
       const d = resizeRef.current;
       if (!d) return;
-      const delta = snap(e.clientX - d.startX);
+      const delta = snap((e.clientX - d.startX) / scaleOf());
       if (d.edge === 'R') {
         const maxEnd = d.origEndPos + (60 - d.visEnd);
         const newEnd = clamp(d.origEndPos + delta, d.origStartPos + 0.5, maxEnd);
@@ -279,7 +288,7 @@ export default function RemainingRoadmap({
           height={BAR_H}
           rx={6}
           fill={b.fill}
-          stroke={sel || active ? '#D6443B' : b.emphasize ? '#2C2C2A' : 'rgba(0,0,0,0.2)'}
+          stroke={sel || active ? ACCENT : b.emphasize ? NAVY : 'rgba(0,0,0,0.18)'}
           strokeWidth={sel || active ? 2.5 : b.emphasize ? 1.5 : 0.8}
           style={{ cursor: 'grab' }}
           onPointerDown={(ev) => startMove(ev, b)}
@@ -312,7 +321,7 @@ export default function RemainingRoadmap({
               setPopupId(null);
             }}
           >
-            <circle cx={x + w - 9} cy={yTop + 9} r={7.5} fill="#D6443B" stroke="#fff" strokeWidth={1.5} />
+            <circle cx={x + w - 9} cy={yTop + 9} r={7.5} fill={ACCENT} stroke="#fff" strokeWidth={1.5} />
             <text x={x + w - 9} y={yTop + 12.5} fontSize={10} fill="#fff" textAnchor="middle" fontWeight={700} style={{ pointerEvents: 'none' }}>
               ✕
             </text>
@@ -323,7 +332,7 @@ export default function RemainingRoadmap({
   };
 
   const rowLabel = (text: string, top: number) => (
-    <text x={12} y={top + BAR_H / 2 + 4} fontSize={11} fontWeight={600} fill="#2C2C2A">
+    <text x={12} y={top + BAR_H / 2 + 4} fontSize={11} fontWeight={600} fill={INK}>
       {text}
     </text>
   );
@@ -337,15 +346,17 @@ export default function RemainingRoadmap({
   return (
     <>
       <svg
+        ref={svgRef}
         className="roadmap-svg"
-        width={chartW}
-        height={chartH}
+        width="100%"
         viewBox={`0 0 ${chartW} ${chartH}`}
+        style={{ minWidth: chartW, height: 'auto', display: 'block' }}
         role="img"
         aria-label={`${track} 남은 과정 로드맵`}
       >
-        <text x={8} y={16} fontSize={13} fontWeight={700} fill="#2C2C2A">
-          {track} · 남은 특화 과정
+        {/* 왼쪽 위: 오늘 기준 표시 */}
+        <text x={10} y={GRADE_H / 2 + 5} fontSize={11} fontWeight={700} fill={BRAND}>
+          오늘 {gradeOfIndex(atIdx)} {monthOfIndex(atIdx)}월 →
         </text>
 
         {/* 월 배경 틴트 */}
@@ -366,8 +377,8 @@ export default function RemainingRoadmap({
           const w = (gEnd - gStart) * COL_W;
           return (
             <g key={`grade-${g}`}>
-              <rect x={x} y={0} width={w} height={GRADE_H} fill="#F6F5F0" stroke="#C9C7BD" strokeWidth={0.5} />
-              <text x={x + w / 2} y={GRADE_H / 2 + 4} fontSize={12} fontWeight={600} fill="#2C2C2A" textAnchor="middle">
+              <rect x={x} y={0} width={w} height={GRADE_H} fill="#E9F3FC" stroke={LINE} strokeWidth={0.5} />
+              <text x={x + w / 2} y={GRADE_H / 2 + 4} fontSize={12} fontWeight={700} fill="#0B4E9F" textAnchor="middle">
                 {g}
               </text>
             </g>
@@ -381,7 +392,7 @@ export default function RemainingRoadmap({
           return (
             <g key={`m-${k}`}>
               <rect x={xOf(idx)} y={GRADE_H} width={COL_W} height={MONTH_H} fill={SEASON_TINT[season]} />
-              <text x={xOf(idx) + COL_W / 2} y={GRADE_H + MONTH_H / 2 + 3} fontSize={8} fill="#6B6A64" textAnchor="middle">
+              <text x={xOf(idx) + COL_W / 2} y={GRADE_H + MONTH_H / 2 + 3} fontSize={8} fill={MUTED} textAnchor="middle">
                 {monthOfIndex(idx)}
               </text>
             </g>
@@ -396,15 +407,15 @@ export default function RemainingRoadmap({
           </g>
         ))}
         {specLayout.length === 0 && (
-          <text x={LABEL_W + 8} y={HEADER_H + PAD + BAR_H / 2 + 4} fontSize={11} fill="#6B6A64">
+          <text x={LABEL_W + 8} y={HEADER_H + PAD + BAR_H / 2 + 4} fontSize={11} fill={MUTED}>
             남은 특화 과정이 없습니다.
           </text>
         )}
 
         {/* 교과 섹션 */}
-        <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke="#C9C7BD" strokeWidth={1} />
-        <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill="#2C2C2A">
-          교과 과정 · 블록 클릭=편집/✕제거 · 몸통 드래그=시기 이동 · 가장자리 드래그=기간 조절(0.5월)
+        <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke={LINE} strokeWidth={1} />
+        <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill={INK}>
+          교과 과정 · 학생 진도 기준으로 오늘부터 배치 (완료한 블록은 표시하지 않음)
         </text>
         {rowLabel('수학 교과', mathLaneTop)}
         {mathLane.placed.map((b) => renderBar(b, mathLaneTop))}
@@ -412,10 +423,7 @@ export default function RemainingRoadmap({
         {sciLane.placed.map((b) => renderBar(b, sciLaneTop))}
 
         {/* 현재 월 세로선 */}
-        <line x1={xOf(atIdx)} y1={HEADER_H} x2={xOf(atIdx)} y2={chartH} stroke="#D6443B" strokeWidth={1.5} strokeDasharray="4 3" />
-        <text x={xOf(atIdx) + 4} y={HEADER_H + 12} fontSize={9} fontWeight={700} fill="#D6443B">
-          오늘 {gradeOfIndex(atIdx)} {monthOfIndex(atIdx)}월
-        </text>
+        <line x1={xOf(atIdx)} y1={HEADER_H} x2={xOf(atIdx)} y2={chartH} stroke={BRAND} strokeWidth={1.5} strokeDasharray="4 3" />
       </svg>
 
       {popupCourse && (

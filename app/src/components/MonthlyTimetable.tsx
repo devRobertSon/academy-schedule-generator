@@ -39,9 +39,9 @@ const END_HOUR = 22;
 const SLOT_MIN = 30;
 const SLOT_COUNT = ((END_HOUR - START_HOUR) * 60) / SLOT_MIN;
 const TIME_COL_W = 50;
-const DAY_W = 92;
+const DAY_W = 96;
 const SLOT_H = 22;
-const HEAD_H = 26;
+const HEAD_H = 28;
 
 const toMin = (s: string) => {
   const [h, m] = s.split(':').map(Number);
@@ -67,22 +67,23 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
       title={`${block.label} — 드래그로 요일/시간 이동`}
       style={{
         position: 'absolute',
-        left,
-        top,
-        width: DAY_W - 2,
-        height: height - 2,
+        left: left + 1,
+        top: top + 1,
+        width: DAY_W - 3,
+        height: height - 3,
         background: c.fill,
         color: c.text,
-        border: conflict ? '2px solid #D6443B' : '1px solid rgba(0,0,0,0.15)',
-        borderRadius: 5,
+        border: conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
+        borderRadius: 7,
         boxSizing: 'border-box',
-        padding: '2px 5px',
+        padding: '3px 6px',
         fontSize: 11,
         lineHeight: 1.25,
         cursor: 'grab',
         overflow: 'hidden',
         zIndex: isDragging ? 50 : 10,
         opacity: isDragging ? 0.85 : 1,
+        boxShadow: isDragging ? '0 6px 16px rgba(29,34,96,0.25)' : 'none',
         transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
         touchAction: 'none',
       }}
@@ -108,9 +109,9 @@ function Cell({ dayIdx, slot }: { dayIdx: number; slot: number }) {
         width: DAY_W,
         height: SLOT_H,
         boxSizing: 'border-box',
-        borderRight: '1px solid #ECEAE2',
-        borderBottom: slot % 2 === 1 ? '1px solid #E2E0D8' : '1px dashed #EFEDE6',
-        background: isOver ? 'rgba(214,68,59,0.10)' : 'transparent',
+        borderRight: '1px solid #E6EDF6',
+        borderBottom: slot % 2 === 1 ? '1px solid #D9E3F0' : '1px dashed #EEF3F9',
+        background: isOver ? 'rgba(47,159,227,0.15)' : 'transparent',
       }}
     />
   );
@@ -162,6 +163,7 @@ export default function MonthlyTimetable({
 
   const gridW = TIME_COL_W + DAYS.length * DAY_W;
   const gridH = HEAD_H + SLOT_COUNT * SLOT_H;
+  const label = `${gradeOfIndex(viewIdx)} ${monthOfIndex(viewIdx)}월`;
 
   const lessons = [...tt.blocks].sort((a, b) => {
     const d = DAYS.indexOf(a.slot.day) - DAYS.indexOf(b.slot.day);
@@ -169,96 +171,103 @@ export default function MonthlyTimetable({
   });
 
   return (
-    <div className="timetable-builder">
-      <div className="month-nav">
-        <button onClick={() => onViewIdxChange(Math.max(atIdx, viewIdx - 1))} disabled={viewIdx <= atIdx}>
-          ◀ 이전 달
-        </button>
-        <span className="month-label">
-          {gradeOfIndex(viewIdx)} {monthOfIndex(viewIdx)}월 시간표
-        </span>
-        <button onClick={() => onViewIdxChange(Math.min(59, viewIdx + 1))} disabled={viewIdx >= 59}>
-          다음 달 ▶
-        </button>
-      </div>
-
-      <div className="tt-toolbar no-print">
-        <span>
-          <span className="swatch" style={{ background: COLORS.수학.fill }} /> 수학
-        </span>
-        <span>
-          <span className="swatch" style={{ background: COLORS.과학.fill }} /> 과학
-        </span>
-        <span>
-          <span className="swatch" style={{ background: COLORS.면접.fill }} /> 면접
-        </span>
-        <span className="hint">블록을 드래그해 요일·시간을 옮기세요 · 수업 추가는 [관리] 탭</span>
-      </div>
-
-      <div className="tt-scroll">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="tt-grid" style={{ position: 'relative', width: gridW, height: gridH }}>
-            {DAYS.map((d, i) => (
-              <div
-                key={d}
-                className="tt-day-head"
-                style={{ position: 'absolute', left: TIME_COL_W + i * DAY_W, top: 0, width: DAY_W, height: HEAD_H }}
-              >
-                {d}
-              </div>
-            ))}
-            {Array.from({ length: SLOT_COUNT }).map((_, s) =>
-              s % 2 === 0 ? (
-                <div
-                  key={`tl-${s}`}
-                  className="tt-time-label"
-                  style={{ position: 'absolute', left: 0, top: HEAD_H + s * SLOT_H - 1, width: TIME_COL_W, height: SLOT_H }}
-                >
-                  {toHHMM(slotToMin(s))}
-                </div>
-              ) : null
-            )}
-            {DAYS.map((_, dayIdx) =>
-              Array.from({ length: SLOT_COUNT }).map((_, s) => <Cell key={`c-${dayIdx}-${s}`} dayIdx={dayIdx} slot={s} />)
-            )}
-            {tt.blocks.map((b) => (
-              <Block key={b.key} block={b} conflict={conflictKeys.has(b.key)} />
-            ))}
-          </div>
-        </DndContext>
-      </div>
-
-      {tt.conflicts.length > 0 && (
-        <div className="conflict-box">
-          <strong>⚠ 시간 충돌 {tt.conflicts.length}건</strong>
-          <ul>
-            {tt.conflicts.map(({ a, b }, i) => (
-              <li key={i}>
-                {a.slot.day} {a.slot.start}~{a.slot.end} · 「{a.label}」 ↔ 「{b.label}」 — 블록을 옮겨 해결하세요.
-              </li>
-            ))}
-          </ul>
+    <div className="tt-layout">
+      <div className="tt-main">
+        <div className="month-nav">
+          <button onClick={() => onViewIdxChange(Math.max(atIdx, viewIdx - 1))} disabled={viewIdx <= atIdx}>
+            ◀ 이전 달
+          </button>
+          <span className="month-label">{label} 시간표</span>
+          <button onClick={() => onViewIdxChange(Math.min(59, viewIdx + 1))} disabled={viewIdx >= 59}>
+            다음 달 ▶
+          </button>
         </div>
-      )}
 
-      <div className="lesson-list">
-        <strong>
-          {gradeOfIndex(viewIdx)} {monthOfIndex(viewIdx)}월 수업 목록
-        </strong>
-        {lessons.length === 0 ? (
-          <p className="muted">이 달에 배정된 수업이 없습니다.</p>
-        ) : (
-          <ul>
-            {lessons.map((b) => (
-              <li key={b.key}>
-                <span className="dot" style={{ background: COLORS[b.subject as Subject].fill }} />
-                {b.slot.day} {b.slot.start}~{b.slot.end} · {b.label}
-                {b.teacher ? ` · ${b.teacher} 쌤` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="tt-toolbar no-print">
+          <span>
+            <span className="swatch" style={{ background: COLORS.수학.fill }} /> 수학
+          </span>
+          <span>
+            <span className="swatch" style={{ background: COLORS.과학.fill }} /> 과학
+          </span>
+          <span>
+            <span className="swatch" style={{ background: COLORS.면접.fill }} /> 면접
+          </span>
+          <span>
+            <span className="swatch" style={{ background: COLORS.교과.fill }} /> 교과
+          </span>
+          <span className="hint">블록을 드래그해 요일·시간을 옮기세요</span>
+        </div>
+
+        <div className="tt-scroll">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <div className="tt-grid" style={{ position: 'relative', width: gridW, height: gridH }}>
+              {DAYS.map((d, i) => (
+                <div
+                  key={d}
+                  className="tt-day-head"
+                  style={{ position: 'absolute', left: TIME_COL_W + i * DAY_W, top: 0, width: DAY_W, height: HEAD_H }}
+                >
+                  {d}
+                </div>
+              ))}
+              {Array.from({ length: SLOT_COUNT }).map((_, s) =>
+                s % 2 === 0 ? (
+                  <div
+                    key={`tl-${s}`}
+                    className="tt-time-label"
+                    style={{ position: 'absolute', left: 0, top: HEAD_H + s * SLOT_H - 1, width: TIME_COL_W, height: SLOT_H }}
+                  >
+                    {toHHMM(slotToMin(s))}
+                  </div>
+                ) : null
+              )}
+              {DAYS.map((_, dayIdx) =>
+                Array.from({ length: SLOT_COUNT }).map((_, s) => <Cell key={`c-${dayIdx}-${s}`} dayIdx={dayIdx} slot={s} />)
+              )}
+              {tt.blocks.map((b) => (
+                <Block key={b.key} block={b} conflict={conflictKeys.has(b.key)} />
+              ))}
+            </div>
+          </DndContext>
+        </div>
       </div>
+
+      <aside className="tt-side">
+        {tt.conflicts.length > 0 && (
+          <div className="conflict-box">
+            <strong>⚠ 시간 충돌 {tt.conflicts.length}건</strong>
+            <ul>
+              {tt.conflicts.map(({ a, b }, i) => (
+                <li key={i}>
+                  {a.slot.day} {a.slot.start}~{a.slot.end} · 「{a.label}」 ↔ 「{b.label}」
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="side-box lesson-list">
+          <strong>{label} 수업 목록</strong>
+          {lessons.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>
+              이 달에 배정된 수업이 없습니다.
+            </p>
+          ) : (
+            <ul>
+              {lessons.map((b) => (
+                <li key={b.key}>
+                  <span className="dot" style={{ background: COLORS[b.subject as Subject].fill }} />
+                  <span>
+                    <b>{b.slot.day}</b> {b.slot.start}~{b.slot.end} · {b.label}
+                    {b.teacher ? ` · ${b.teacher} 쌤` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {tt.conflicts.length === 0 && <p className="muted" style={{ margin: '8px 0 0' }}>✓ 시간 충돌 없음</p>}
+        </div>
+      </aside>
     </div>
   );
 }

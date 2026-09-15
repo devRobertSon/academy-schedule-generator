@@ -43,6 +43,9 @@ interface SavedFile {
   };
 }
 
+// 레포 루트의 logo.png (GitHub Pages 기준). 없으면 α 마크로 대체.
+const LOGO_URL = `${import.meta.env.BASE_URL}logo.png`;
+
 export default function App() {
   const [page, setPage] = useState<Page>('consult');
   const [store, setStoreState] = useState<StoreData>(() => loadStore());
@@ -62,6 +65,7 @@ export default function App() {
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
   const [hidden, setHidden] = useState<string[]>([]);
+  const [logoOk, setLogoOk] = useState(true);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
   const progress = useMemo(
@@ -76,7 +80,6 @@ export default function App() {
     setViewIdx((v) => Math.min(59, Math.max(atIdx, v)));
   }, [atIdx]);
 
-  // 이 학생 로드맵에서 제거(✕)한 블록은 로드맵·시간표에서 제외
   const visibleCourses = useMemo(() => store.courses.filter((c) => !hidden.includes(c.id)), [store.courses, hidden]);
 
   const exportRef = useRef<HTMLDivElement>(null);
@@ -128,7 +131,17 @@ export default function App() {
     <div className="app">
       <header className="app-header no-print">
         <div className="brand">
-          <h1>알파학원 입시 상담 로드맵</h1>
+          <a className="logo" href="#" onClick={(e) => e.preventDefault()}>
+            {logoOk ? (
+              <img src={LOGO_URL} alt="알파학원" onError={() => setLogoOk(false)} />
+            ) : (
+              <span className="mark">α</span>
+            )}
+            <span>
+              <b>알파학원</b>
+              <small>입시 상담 로드맵</small>
+            </span>
+          </a>
           <nav className="page-nav">
             <button className={page === 'consult' ? 'active' : ''} onClick={() => setPage('consult')}>
               상담
@@ -142,6 +155,7 @@ export default function App() {
               💾 저장
             </button>
             <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
+            {page === 'consult' && <ExportBar targetRef={exportRef} />}
             <input
               ref={fileRef}
               type="file"
@@ -155,69 +169,60 @@ export default function App() {
             />
           </div>
         </div>
-        <p>
-          {page === 'consult'
-            ? '학생의 현재 학년·월·진도를 입력하면, 목표 학교 합격까지 남은 과목과 월별 시간표를 만들어 학부모님께 전달할 수 있습니다.'
-            : '과정의 개설 월·기간·요일·시작시간·담당 선생님을 편집합니다. (브라우저 자동 저장 · JSON 백업 가능)'}
-        </p>
       </header>
 
       {page === 'admin' ? (
         <section className="card">
+          <p className="muted">
+            과정의 개설 월·기간·요일·시작시간·담당 선생님을 편집합니다. 브라우저에 자동 저장되며 JSON으로 백업할 수 있습니다.
+          </p>
           <AdminPage store={store} onChange={setStore} />
         </section>
       ) : (
         <>
-          <section className="card no-print">
-            <h2>상담 정보</h2>
+          {/* 상담 정보 칩 스트립 */}
+          <div className="chip-bar no-print">
+            <span className="who">{info.studentName ? `${info.studentName} 학생` : '상담 학생'}</span>
             <ConsultForm value={info} onChange={setInfo} />
-            <div className="track-tabs" role="tablist" style={{ marginTop: 12 }}>
-              <span className="tabs-label">목표 학교</span>
-              {TRACKS.map((t) => (
-                <button
-                  key={t}
-                  role="tab"
-                  aria-selected={t === track}
-                  className={`track-tab ${t === track ? 'active' : ''}`}
-                  onClick={() => setTrack(t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <ExportBar targetRef={exportRef} />
+            <label className="chip target">
+              <span className="k">목표</span>
+              <select value={track} onChange={(e) => setTrack(e.target.value as Track)}>
+                {TRACKS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {hidden.length > 0 && (
+              <button className="chip ghost" onClick={() => setHidden([])}>
+                제거한 블록 {hidden.length}개 복원
+              </button>
+            )}
+          </div>
 
           <div className="export-region" ref={exportRef}>
+            {/* 인쇄/PNG용 요약 헤더 */}
             <div className="export-summary">
               <h2>
                 {info.studentName ? `${info.studentName} 학생 · ` : ''}
                 {track} 준비 로드맵
               </h2>
               <p>
-                현재{' '}
-                <b>
-                  {info.grade} {info.month}월
-                </b>{' '}
-                · 수학 진도 <b>{mathProgress}</b> 완료 · 과학 진도 <b>{sciProgress}</b> 완료
+                현재 {info.grade} {info.month}월 · 수학 진도 {mathProgress} 완료 · 과학 진도 {sciProgress} 완료
                 <span className="gen-date"> · 상담일 {today}</span>
               </p>
             </div>
 
-            <section className="card">
+            <section className="card hero">
               <h2>
-                ① {track} 합격까지 남은 과목 ({remaining.length}개)
-                {hidden.length > 0 && (
-                  <button className="mini ghost no-print" style={{ marginLeft: 10 }} onClick={() => setHidden([])}>
-                    제거한 블록 {hidden.length}개 복원
-                  </button>
-                )}
+                <span className="num">1</span>
+                {track} 합격까지 남은 과목
+                <span className="muted">· {remaining.length}개</span>
+                <span className="muted no-print" style={{ marginLeft: 'auto', fontWeight: 400 }}>
+                  블록 클릭 = 편집/✕제거 · 몸통 드래그 = 시기 이동 · 가장자리 드래그 = 기간(0.5월)
+                </span>
               </h2>
-              <p className="muted no-print">
-                블록을 클릭하면 요일·시간·선생님을 편집하고 ✕로 제거할 수 있습니다. 몸통을 드래그하면 시기가 이동하고,
-                좌우 가장자리를 드래그하면 기간이 0.5월 단위로 늘어나거나 줄어들며 관리 탭에 반영됩니다.
-              </p>
               <div className="roadmap-scroll">
                 <RemainingRoadmap
                   courses={visibleCourses}
@@ -238,10 +243,9 @@ export default function App() {
             </section>
 
             <section className="card">
-              <h2>② 월별 시간표</h2>
-              <p className="muted no-print">
-                ◀ ▶로 달을 바꿔 매월 시간표를 확인하고, 블록을 드래그해 요일·시간을 조정하세요.
-              </p>
+              <h2>
+                <span className="num">2</span>월별 시간표
+              </h2>
               <MonthlyTimetable
                 courses={visibleCourses}
                 progress={progress}
