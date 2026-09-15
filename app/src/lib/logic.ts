@@ -215,6 +215,7 @@ export function buildMonthlyTimetable(
         key,
         courseId: c.id,
         sessionIdx: i,
+        gyo: c.track === '공통' ? (c.subject === '수학' ? 'math' : 'sci') : undefined,
         label: c.name,
         subject: c.subject,
         teacher: c.teacher,

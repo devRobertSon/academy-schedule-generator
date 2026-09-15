@@ -12,7 +12,6 @@ import {
 import {
   COLORS,
   Course,
-  Subject,
   TimeSlot,
   Track,
   Weekday,
@@ -20,6 +19,10 @@ import {
   monthOfIndex,
 } from '../data/roadmap';
 import { GyoProgress, TimetableBlock, buildMonthlyTimetable } from '../lib/logic';
+
+/** 블록 색: 교과(공통)는 과목별 교과 색, 그 외는 과목 색 */
+const colorOf = (b: TimetableBlock) =>
+  b.gyo === 'math' ? COLORS.교과수학 : b.gyo === 'sci' ? COLORS.교과과학 : COLORS[b.subject];
 
 interface Props {
   courses: Course[];
@@ -58,7 +61,7 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
   const top = HEAD_H + minToSlot(toMin(block.slot.start)) * SLOT_H;
   const height = ((toMin(block.slot.end) - toMin(block.slot.start)) / SLOT_MIN) * SLOT_H;
   const left = TIME_COL_W + dayIdx * DAY_W;
-  const c = COLORS[block.subject];
+  const c = colorOf(block);
   return (
     <div
       ref={setNodeRef}
@@ -185,16 +188,19 @@ export default function MonthlyTimetable({
 
         <div className="tt-toolbar no-print">
           <span>
-            <span className="swatch" style={{ background: COLORS.수학.fill }} /> 수학
+            <span className="swatch" style={{ background: COLORS.수학.fill }} /> 특화 수학
           </span>
           <span>
-            <span className="swatch" style={{ background: COLORS.과학.fill }} /> 과학
+            <span className="swatch" style={{ background: COLORS.과학.fill }} /> 특화 과학
           </span>
           <span>
             <span className="swatch" style={{ background: COLORS.면접.fill }} /> 면접
           </span>
           <span>
-            <span className="swatch" style={{ background: COLORS.교과.fill }} /> 교과
+            <span className="swatch" style={{ background: COLORS.교과수학.fill }} /> 교과 수학
+          </span>
+          <span>
+            <span className="swatch" style={{ background: COLORS.교과과학.fill }} /> 교과 과학
           </span>
           <span className="hint">블록을 드래그해 요일·시간을 옮기세요</span>
         </div>
@@ -256,7 +262,7 @@ export default function MonthlyTimetable({
             <ul>
               {lessons.map((b) => (
                 <li key={b.key}>
-                  <span className="dot" style={{ background: COLORS[b.subject as Subject].fill }} />
+                  <span className="dot" style={{ background: colorOf(b).fill }} />
                   <span>
                     <b>{b.slot.day}</b> {b.slot.start}~{b.slot.end} · {b.label}
                     {b.teacher ? ` · ${b.teacher} 쌤` : ''}

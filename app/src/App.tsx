@@ -219,9 +219,6 @@ export default function App() {
                 <span className="num">1</span>
                 {track} 합격까지 남은 과목
                 <span className="muted">· {remaining.length}개</span>
-                <span className="muted no-print" style={{ marginLeft: 'auto', fontWeight: 400 }}>
-                  블록 클릭 = 편집/✕제거 · 몸통 드래그 = 시기 이동 · 가장자리 드래그 = 기간(0.5월)
-                </span>
               </h2>
               <div className="roadmap-scroll">
                 <RemainingRoadmap

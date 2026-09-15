@@ -29,11 +29,19 @@ export const TRACKS: Track[] = ['영재학교', '과학고', '국제고', '외�
 export const ACADEMIC_MONTHS: number[] = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2]; // 학사연도 월 순서
 
 export const COLORS = {
-  수학: { fill: '#8CC4F2', text: '#0B3D7A' },
-  과학: { fill: '#F7B267', text: '#5A2E00' },
+  수학: { fill: '#8CC4F2', text: '#0B3D7A' }, // 특화 수학
+  과학: { fill: '#F7B267', text: '#5A2E00' }, // 특화 과학
   면접: { fill: '#B4ACF0', text: '#2B2470' },
-  교과: { fill: '#CFD9E8', text: '#1F2F4D' },
+  교과: { fill: '#CFD9E8', text: '#1F2F4D' }, // (예비) 교과 공통
+  교과수학: { fill: '#BFC9F6', text: '#1E2B70' }, // 교과 수학(연보라)
+  교과과학: { fill: '#B9E6C4', text: '#16502B' }, // 교과 과학(민트)
 };
+
+/** 과정의 표시 색: 교과(공통)는 과목별 교과 색, 그 외는 과목 색 */
+export function courseColor(c: { track: Track | '공통'; subject: Subject }) {
+  if (c.track === '공통') return c.subject === '수학' ? COLORS.교과수학 : c.subject === '과학' ? COLORS.교과과학 : COLORS.교과;
+  return COLORS[c.subject];
+}
 
 export function academicMonthIndex(month: number): number {
   return (month + 9) % 12;
