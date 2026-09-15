@@ -1,4 +1,5 @@
 // src/lib/logic.ts — 상담 도구 로직(목표 학교의 남은 과목 + 월별 시간표)
+// 위치/구간은 0.5월 단위: startIdx = 시작 위치, endIdx = 마지막 반달(포함) → 종료 위치 = endIdx + 0.5
 import {
   Course,
   Grade,
@@ -7,7 +8,9 @@ import {
   Subject,
   TimeSlot,
   Track,
+  endPos,
   gmIndex,
+  startPos,
 } from '../data/roadmap';
 
 export type Status = '완료' | '진행중' | '예정';
@@ -22,21 +25,20 @@ export function nowIndex(grade: Grade, month: number): number {
   return gmIndex(grade, month);
 }
 
-/** 학생 맞춤 이동(shift)을 반영한 과정 구간(월 인덱스) */
+/** 학생 맞춤 이동(shift, 0.5 단위)을 반영한 과정 구간 */
 export function shiftedRange(course: Course, shift = 0): { startIdx: number; endIdx: number } {
-  return {
-    startIdx: gmIndex(course.start.grade, course.start.month) + shift,
-    endIdx: gmIndex(course.end.grade, course.end.month) + shift,
-  };
+  const s = startPos(course.start) + shift;
+  const e = endPos(course.end) + shift;
+  return { startIdx: s, endIdx: e - 0.5 };
 }
 
+/** atIdx(정수 월) 기준 상태. 그 달과 조금이라도 겹치면 진행중 */
 export function statusFromIdx(startIdx: number, endIdx: number, atIdx: number): Status {
-  if (atIdx < startIdx) return '예정';
-  if (atIdx > endIdx) return '완료';
+  if (endIdx < atIdx) return '완료';
+  if (startIdx > atIdx + 0.5) return '예정';
   return '진행중';
 }
 
-/** gmIndex(start)..gmIndex(end)(+shift) 기준 완료/진행중/예정 */
 export function courseStatus(course: Course, atIdx: number, shift = 0): Status {
   const { startIdx, endIdx } = shiftedRange(course, shift);
   return statusFromIdx(startIdx, endIdx, atIdx);
@@ -50,10 +52,7 @@ export interface RoadmapEntry {
   shift: number;
 }
 
-/**
- * 목표 학교의 "남은 과목"(완료되지 않은 과정)을 시작 월 순으로 반환.
- * shifts: 과정 id별 학생 맞춤 이동(개월 수)
- */
+/** 목표 학교의 "남은 과목"(완료되지 않은 과정)을 시작 순으로 반환 */
 export function remainingCourses(
   courses: Course[],
   track: Track,
@@ -79,12 +78,7 @@ export interface GyoProjection {
 }
 
 /** 교과 월 투영(완료/진행중/예정) */
-export function projectGyo(
-  seq: string[],
-  currentIdx: number,
-  nowIdx: number,
-  monthsPerItem: number
-): GyoProjection[] {
+export function projectGyo(seq: string[], currentIdx: number, nowIdx: number, monthsPerItem: number): GyoProjection[] {
   return seq.map((name, i) => ({
     name,
     startIdx: nowIdx + (i - currentIdx) * monthsPerItem,
@@ -95,9 +89,9 @@ export function projectGyo(
 
 export interface TimetableBlock {
   key: string;
-  courseId?: string; // 특화 과정(드래그 시 슬롯 override 대상)
-  sessionIdx?: number; // 과정 내 세션(주 N회) 인덱스
-  gyo?: 'math' | 'sci'; // 교과 식별
+  courseId?: string;
+  sessionIdx?: number;
+  gyo?: 'math' | 'sci';
   label: string;
   subject: Subject;
   teacher?: string;
@@ -178,12 +172,12 @@ export function gyoLaneLayout(
     .sort((a, b) => (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name));
   let acc = atIdx;
   return list.map(({ c, seq }) => {
-    const dur = Math.max(1, gmIndex(c.end.grade, c.end.month) - gmIndex(c.start.grade, c.start.month) + 1);
+    const dur = Math.max(0.5, endPos(c.end) - startPos(c.start));
     const base = acc;
     acc += dur;
     const wanted = base + (shifts[c.id] ?? 0);
     const startIdx = Math.max(atIdx, Math.min(60 - dur, wanted));
-    return { course: c, startIdx, endIdx: startIdx + dur - 1, shift: startIdx - base, current: seq === currentIdx };
+    return { course: c, startIdx, endIdx: startIdx + dur - 0.5, shift: startIdx - base, current: seq === currentIdx };
   });
 }
 
@@ -192,7 +186,6 @@ export function gyoLaneLayout(
  *  - 목표 학교(track)에서 그 달에 진행 중인 과정
  *  - 교과(공통) 과정 중 학생 진도 기준으로 그 달에 배치된 블록
  * 한 과정이 주 N회면 세션마다 블록이 생긴다.
- * slotOverrides: 시간표에서 드래그로 바꾼 세션별 요일/시간(키 = courseId#sessionIdx)
  */
 export function buildMonthlyTimetable(
   courses: Course[],
@@ -210,10 +203,10 @@ export function buildMonthlyTimetable(
   const blocks: TimetableBlock[] = [];
   for (const c of courses) {
     let range: { startIdx: number; endIdx: number } | undefined;
-    if (c.track === '공통') range = gyoRange.get(c.id); // 완료 블록은 배치에 없음 → 제외
+    if (c.track === '공통') range = gyoRange.get(c.id);
     else if (c.track === track) range = shiftedRange(c, shifts[c.id] ?? 0);
     if (!range) continue;
-    if (viewIdx < range.startIdx || viewIdx > range.endIdx) continue; // 이 달에 진행 안 함
+    if (range.startIdx > viewIdx + 0.5 || range.endIdx < viewIdx) continue; // 이 달과 안 겹침
     c.schedule.forEach((base, i) => {
       const key = sessionKey(c.id, i);
       const slot = slotOverrides[key] ?? base;
