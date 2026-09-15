@@ -203,9 +203,9 @@ describe('입시 여정 요약(journeySummary) — 영재학교 중2 9월', () =
   const atIdx = nowIndex('중2', 9); // 42
   const j = journeySummary(courses, plans['영재학교'], '영재학교', atIdx, {}, PROGRESS);
 
-  it('지금 단계는 ② 심화·KMO, 다음 단계는 ③ 파이널(중2 12월~)', () => {
+  it('지금 단계는 ② 심화·KMO, 다음 단계는 ③ 지필평가 준비(중2 12월~)', () => {
     expect(j.currentPhase?.name).toBe('② 심화·KMO');
-    expect(j.nextPhase?.name).toBe('③ 파이널');
+    expect(j.nextPhase?.name).toBe('③ 지필평가 준비');
     expect(j.nextPhaseStartIdx).toBe(gmIndex('중2', 12));
   });
   it('지금 진행 중인 과정에 KMO와 현재 교과 블록이 들어간다', () => {
@@ -214,11 +214,17 @@ describe('입시 여정 요약(journeySummary) — 영재학교 중2 9월', () =
   it('다음 단계에 시작하는 과정을 보여준다', () => {
     expect(j.nextCourses).toContain('영재 파이널 수학');
   });
-  it('시험 마일스톤(중순=0.5월)과 남은 개월을 계산한다', () => {
+  it('시험 마일스톤과 남은 개월을 계산한다', () => {
     expect(j.milestones[0].name).toBe('영재학교 2차 평가(지필)');
-    expect(j.milestones[0].half).toBe(true);
-    expect(j.milestones[0].monthsLeft).toBe(gmIndex('중3', 7) + 0.5 - atIdx); // 10.5
+    expect(j.milestones[0].half).toBe(false); // 7월 초
+    expect(j.milestones[0].monthsLeft).toBe(gmIndex('중3', 7) - atIdx); // 10
     expect(j.milestones[1].name).toBe('영재학교 3차 평가(면접)');
     expect(j.milestones[1].monthsLeft).toBe(gmIndex('중3', 8) - atIdx); // 7월과 8월 사이 = 8월 초
+  });
+  it('중순 시험은 0.5월로 계산한다 (과학고 면담 평가 10월 중순)', () => {
+    const k = journeySummary(courses, plans['과학고'], '과학고', atIdx, {}, PROGRESS);
+    expect(k.milestones[0].name).toBe('과학고 면담 평가(인성)');
+    expect(k.milestones[0].half).toBe(true);
+    expect(k.milestones[0].monthsLeft).toBe(gmIndex('중3', 10) + 0.5 - atIdx);
   });
 });
