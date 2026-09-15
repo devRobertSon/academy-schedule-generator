@@ -78,9 +78,23 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
 });
 
 describe('남은 과목 — 중1 6월 영재학교(전 과정 남음)', () => {
-  it('영재학교 12개 과정(KMO 4분할·천체/유전 분리 포함)이 모두 남는다', () => {
+  it('영재학교 13개 과정(KMO 4분할·천체/유전 분리·파이널 면접 포함)이 모두 남는다', () => {
     const atIdx = nowIndex('중1', 6);
-    expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(12);
+    expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(13);
+  });
+  it('파이널 수학·과학·KMO는 중3 6월에 끝나고, 파이널 면접은 중3 7월 한 달', () => {
+    for (const id of ['yj_final_math', 'yj_final_sci', 'yj_kmo_algebra', 'yj_kmo_geometry', 'yj_kmo_number', 'yj_kmo_combi']) {
+      expect(byId(id).end).toEqual({ grade: '중3', month: 6 });
+    }
+    expect(byId('yj_final_interview')).toMatchObject({ subject: '면접', start: { grade: '중3', month: 7 }, end: { grade: '중3', month: 7 } });
+  });
+  it('과학고 파이널 면담(9월~10월 중순)·면접(10월 중순~11월 중순)은 면접 과목', () => {
+    const talk = byId('sg_final_talk');
+    const itv = byId('sg_final_interview');
+    expect(talk.subject).toBe('면접');
+    expect(itv.subject).toBe('면접');
+    expect(shiftedRange(talk, 0)).toEqual({ startIdx: gmIndex('중3', 9), endIdx: gmIndex('중3', 10) });
+    expect(shiftedRange(itv, 0)).toEqual({ startIdx: gmIndex('중3', 10) + 0.5, endIdx: gmIndex('중3', 11) });
   });
 });
 
@@ -212,7 +226,7 @@ describe('입시 여정 요약(journeySummary) — 영재학교 중2 9월', () =
     expect(j.nowCourses).toEqual(expect.arrayContaining(['KMO 대수', '공통수학1', '중3-1학기']));
   });
   it('다음 단계에 시작하는 과정을 보여준다', () => {
-    expect(j.nextCourses).toContain('영재 파이널 수학');
+    expect(j.nextCourses).toContain('영재학교 파이널 수학');
   });
   it('시험 마일스톤과 남은 개월을 계산한다', () => {
     expect(j.milestones[0].name).toBe('영재학교 2차 평가(지필)');

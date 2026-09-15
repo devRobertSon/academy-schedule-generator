@@ -301,6 +301,9 @@ export default function RemainingRoadmap({
     const estWidth = (fs: number) => estTextWidth(name, fs);
     let fontSize = 13;
     while (fontSize > 8 && estWidth(fontSize) > w - 10) fontSize -= 0.5;
+    // 최소 크기로도 안 들어가면(1달짜리 블록 등) 이름을 블록 바깥 오른쪽(끝이면 왼쪽)에 표시
+    const fits = estWidth(fontSize) <= w - 6;
+    const outsideRight = x + w + 6 + estWidth(11) <= chartW;
     return (
       <g key={b.id}>
         <rect
@@ -315,13 +318,25 @@ export default function RemainingRoadmap({
           style={{ cursor: 'grab' }}
           onPointerDown={(ev) => startMove(ev, b)}
         />
-        {w >= 24 && (
+        {fits ? (
           <text
             x={x + w / 2}
             y={yTop + BAR_H / 2 + fontSize * 0.35}
             fontSize={fontSize}
             fill={b.text}
             textAnchor="middle"
+            fontWeight={700}
+            style={{ pointerEvents: 'none' }}
+          >
+            {name}
+          </text>
+        ) : (
+          <text
+            x={outsideRight ? x + w + 6 : x - 6}
+            y={yTop + BAR_H / 2 + 4}
+            fontSize={11}
+            fill={b.text}
+            textAnchor={outsideRight ? 'start' : 'end'}
             fontWeight={700}
             style={{ pointerEvents: 'none' }}
           >
