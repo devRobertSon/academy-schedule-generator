@@ -6,7 +6,7 @@ export interface StoreData {
 }
 
 // 교과 블록이 일반 과정 행으로 바뀌어 저장 구조가 달라짐 → 키 갱신
-const KEY = 'asg.store.v3';
+const KEY = 'asg.store.v4'; // 과학 교과 블록(통합과학) 추가로 시드 갱신
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };

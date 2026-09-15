@@ -179,12 +179,14 @@ export const TRACK_COURSES: Course[] = [
 export const MATH_GYO_SEQUENCE = ['중1-1학기', '중1-2학기', '중2-1학기', '중2-2학기', '중3-1학기', '중3-2학기', '공통수학1', '공통수학2', '대수', '미적분Ⅰ', '확률과 통계', '미적분Ⅱ', '기하'];
 export const SCI_GYO_MID_SEQUENCE = ['중1-1학기', '중1-2학기', '중2-1학기', '중2-2학기', '중3-1학기', '중3-2학기'];
 export const SCI_GYO_HS_PARALLEL = ['물리학', '화학', '생명과학', '지구과학'];
+/** 과학 진도(완료 단계) 선택 목록: 중등 학기 → 통합과학 → 물리학/화학 */
+export const SCI_GYO_SEQUENCE = [...SCI_GYO_MID_SEQUENCE, '통합과학', '물리학/화학'];
 
 /** 고등 교과: 각각 6개월 단위의 개별 블록으로 로드맵에서 따로 드래그·겹침 가능 */
 export const MATH_GYO_ADV_START = 6; // MATH_GYO_SEQUENCE에서 '공통수학1' 인덱스
 export const MATH_GYO_MID = MATH_GYO_SEQUENCE.slice(0, MATH_GYO_ADV_START); // 중등 수학(순차)
 export const MATH_GYO_ADVANCED = MATH_GYO_SEQUENCE.slice(MATH_GYO_ADV_START); // 공통수학1~기하
-export const SCI_GYO_ADVANCED = ['물리', '화학']; // 개별 6개월 블록
+export const SCI_GYO_ADVANCED = ['통합과학', '물리', '화학']; // 개별 6개월 블록(물리·화학은 진도의 '물리학/화학'에 함께 대응)
 export const GYO_BLOCK_MONTHS = 6; // 개별 교과 블록 길이(개월)
 
 export const GYO_PACE = { mathMonthsPerItem: 3, sciMonthsPerItem: 3 }; // 교과 진도 투영 속도(월/항목)

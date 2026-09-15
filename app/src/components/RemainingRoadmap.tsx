@@ -3,7 +3,6 @@ import {
   COLORS,
   Course,
   GRADES,
-  SCI_GYO_MID_SEQUENCE,
   Subject,
   Track,
   courseColor,
@@ -162,7 +161,7 @@ export default function RemainingRoadmap({
 
   // 교과(공통) — 학생 진도 기준 오늘부터 순서대로
   const mathCurrent = form.mathIdx + 1;
-  const sciCurrent = form.sciMode === 'mid' ? form.sciIdx + 1 : SCI_GYO_MID_SEQUENCE.length;
+  const sciCurrent = form.sciIdx + 1;
   const toGyoBar = (e: ReturnType<typeof gyoLaneLayout>[number]): Bar => ({
     id: e.course.id,
     course: e.course,

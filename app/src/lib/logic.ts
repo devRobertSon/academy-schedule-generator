@@ -4,7 +4,7 @@ import {
   Course,
   Grade,
   MATH_GYO_SEQUENCE,
-  SCI_GYO_ALL,
+  SCI_GYO_SEQUENCE,
   Subject,
   TimeSlot,
   Track,
@@ -132,11 +132,17 @@ export interface MonthlyTimetable {
   conflicts: ConflictPair[];
 }
 
-/** 교과(공통) 과정의 교육과정 순서 인덱스(이름 기준). 목록에 없으면 -1 */
+/** 교과(공통) 과정의 진도 순서 인덱스(이름 기준). 목록에 없으면 -1 */
 export function gyoSeqIndex(c: Course): number {
   if (c.track !== '공통') return -1;
   if (c.subject === '수학') return MATH_GYO_SEQUENCE.indexOf(c.name);
-  if (c.subject === '과학') return SCI_GYO_ALL.indexOf(c.name);
+  if (c.subject === '과학') {
+    // 물리·화학 블록은 진도 목록의 '물리학/화학' 한 칸에 함께 대응
+    if (c.name === '물리' || c.name === '화학' || c.name === '물리학' || c.name === '물리학/화학') {
+      return SCI_GYO_SEQUENCE.indexOf('물리학/화학');
+    }
+    return SCI_GYO_SEQUENCE.indexOf(c.name);
+  }
   return -1;
 }
 
