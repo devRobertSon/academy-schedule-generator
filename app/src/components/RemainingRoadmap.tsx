@@ -3,10 +3,8 @@ import {
   COLORS,
   Course,
   GRADES,
-  GYO_BLOCK_MONTHS,
-  MATH_GYO_ADVANCED,
   MATH_GYO_ADV_START,
-  MATH_GYO_MID,
+  MATH_GYO_SEQUENCE,
   SCI_GYO_ADVANCED,
   SCI_GYO_MID_SEQUENCE,
   Track,
@@ -15,7 +13,7 @@ import {
   monthToSeason,
 } from '../data/roadmap';
 import { GyoConfig } from '../lib/store';
-import { GyoProjection, projectGyo, remainingCourses } from '../lib/logic';
+import { remainingCourses } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
 
 const COL_W = 26;
@@ -42,10 +40,9 @@ interface Props {
   atIdx: number;
   shifts: Record<string, number>;
   onShiftChange: (courseId: string, shift: number) => void;
-  gyoShift: { math: number; sci: number };
-  onGyoShiftChange: (subject: 'math' | 'sci', shift: number) => void;
+  /** 교과 블록별 시작월 override (키 = `${subject}:${name}`) */
   gyoBlockStarts: Record<string, number>;
-  onGyoBlockMove: (name: string, startIdx: number) => void;
+  onGyoBlockMove: (key: string, startIdx: number) => void;
 }
 
 interface DragState {
@@ -56,16 +53,38 @@ interface DragState {
   baseEnd: number;
 }
 
-interface GyoDragState {
-  subject: 'math' | 'sci';
-  startX: number;
-  origShift: number;
-}
-
-interface AdvDragState {
-  name: string;
+interface BlockDragState {
+  key: string;
   startX: number;
   origStart: number;
+  dur: number;
+}
+
+interface GyoBlock {
+  key: string;
+  name: string;
+  start: number;
+  dur: number;
+  done: boolean;
+  current: boolean;
+}
+
+/** 한 레인 안에서: 안 겹치면 한 줄, 겹치면 아래로 쌓기 */
+function stackBlocks(items: GyoBlock[]) {
+  const sorted = [...items].sort((a, b) => a.start - b.start);
+  const ends: number[] = [];
+  const placed = sorted.map((it) => {
+    const end = it.start + it.dur - 1;
+    let lvl = ends.findIndex((e) => e < it.start);
+    if (lvl === -1) {
+      lvl = ends.length;
+      ends.push(end);
+    } else {
+      ends[lvl] = end;
+    }
+    return { ...it, level: lvl };
+  });
+  return { placed, levels: Math.max(1, ends.length) };
 }
 
 export default function RemainingRoadmap({
@@ -76,20 +95,15 @@ export default function RemainingRoadmap({
   atIdx,
   shifts,
   onShiftChange,
-  gyoShift,
-  onGyoShiftChange,
   gyoBlockStarts,
   onGyoBlockMove,
 }: Props) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
-  const [gyoDrag, setGyoDrag] = useState<GyoDragState | null>(null);
-  const gyoDragRef = useRef<GyoDragState | null>(null);
-  gyoDragRef.current = gyoDrag;
-  const [advDrag, setAdvDrag] = useState<AdvDragState | null>(null);
-  const advDragRef = useRef<AdvDragState | null>(null);
-  advDragRef.current = advDrag;
+  const [blockDrag, setBlockDrag] = useState<BlockDragState | null>(null);
+  const blockDragRef = useRef<BlockDragState | null>(null);
+  blockDragRef.current = blockDrag;
 
   const axisStart = Math.min(atIdx, 59);
   const axisEnd = 59;
@@ -97,12 +111,12 @@ export default function RemainingRoadmap({
   const plotW = cols * COL_W;
   const chartW = LABEL_W + plotW;
   const xOf = (idx: number) => LABEL_W + (idx - axisStart) * COL_W;
-  // 개별 교과 블록 시작월 클램프(오늘 이후 ~ 6개월 블록이 중3 2월 안에 들어오도록)
-  const clampStart = (v: number) => Math.max(atIdx, Math.min(60 - GYO_BLOCK_MONTHS, v));
+  // 블록 시작월 클램프: 오늘 이후 ~ 블록이 중3 2월 안에 들어오도록
+  const clampStart = (v: number, dur: number) => Math.max(atIdx, Math.min(60 - dur, v));
 
   const rem = remainingCourses(courses, track, atIdx, shifts);
 
-  // 레벨 쌓기(겹치면 아래로)
+  // 특화 과정 레벨 쌓기
   const levelEnds: number[] = [];
   const placed = rem.map((e) => {
     let lvl = levelEnds.findIndex((end) => end < e.startIdx);
@@ -115,34 +129,54 @@ export default function RemainingRoadmap({
     return { ...e, level: lvl };
   });
   const courseLevels = Math.max(1, levelEnds.length);
-
   const courseTop = HEADER_H + PAD;
   const gyoSectionTop = courseTop + courseLevels * ROW_H + 18;
 
-  // 교과 투영 (form.mathIdx = '완료한 단계' → 다음 단계가 현재 수강)
-  const mathNow = atIdx + gyoShift.math;
-  const sciNow = atIdx + gyoShift.sci;
-  const mathMidCurrent = Math.min(form.mathIdx + 1, MATH_GYO_MID.length);
-  const mathMidProj = projectGyo(MATH_GYO_MID, mathMidCurrent, mathNow, gyo.mathMonthsPerItem);
-  const sciMidCurrent =
-    form.sciMode === 'mid' ? Math.min(form.sciIdx + 1, SCI_GYO_MID_SEQUENCE.length) : SCI_GYO_MID_SEQUENCE.length;
-  const sciMidProj = projectGyo(SCI_GYO_MID_SEQUENCE, sciMidCurrent, sciNow, gyo.sciMonthsPerItem);
+  /**
+   * 교과 레인 구성: 모든 블록(학기·고등)이 개별 드래그 대상.
+   * 기본 위치 = 현재(첫 미완료) 블록을 오늘에 두고 앞뒤로 일렬 배치.
+   * 이미 완료한 블록은 과거(축 밖)라 보이지 않음.
+   */
+  const buildLane = (subject: 'math' | 'sci', names: string[], durs: number[], currentIdx: number): GyoBlock[] => {
+    const n = names.length;
+    const raw: number[] = new Array(n).fill(atIdx);
+    let acc = atIdx;
+    for (let i = currentIdx; i < n; i++) {
+      raw[i] = acc;
+      acc += durs[i];
+    }
+    acc = atIdx;
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      acc -= durs[i];
+      raw[i] = acc;
+    }
+    return names
+      .map((name, i) => {
+        const key = `${subject}:${name}`;
+        const ov = gyoBlockStarts[key];
+        const start =
+          ov !== undefined ? clampStart(ov, durs[i]) : i >= currentIdx ? clampStart(raw[i], durs[i]) : raw[i];
+        return { key, name, start, dur: durs[i], done: i < currentIdx, current: i === currentIdx };
+      })
+      .filter((b) => b.start + b.dur - 1 >= axisStart);
+  };
 
-  // 개별 6개월 교과 블록 기본 위치
-  const mathAdvBase = clampStart(mathNow + Math.max(0, MATH_GYO_ADV_START - (form.mathIdx + 1)) * gyo.mathMonthsPerItem);
-  const sciAdvBase = clampStart(sciNow + Math.max(0, SCI_GYO_MID_SEQUENCE.length - sciMidCurrent) * gyo.sciMonthsPerItem);
-  const advStart = (name: string, def: number) => clampStart(gyoBlockStarts[name] ?? def);
+  const mathCurrent = Math.min(form.mathIdx + 1, MATH_GYO_SEQUENCE.length);
+  const mathDurs = MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? gyo.mathMidMonths : gyo.mathAdvMonths));
+  const mathLane = stackBlocks(buildLane('math', MATH_GYO_SEQUENCE, mathDurs, mathCurrent));
+
+  const sciNames = [...SCI_GYO_MID_SEQUENCE, ...SCI_GYO_ADVANCED];
+  const sciDurs = sciNames.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? gyo.sciMidMonths : gyo.sciAdvMonths));
+  const sciCurrent =
+    form.sciMode === 'mid' ? Math.min(form.sciIdx + 1, SCI_GYO_MID_SEQUENCE.length) : SCI_GYO_MID_SEQUENCE.length;
+  const sciLane = stackBlocks(buildLane('sci', sciNames, sciDurs, sciCurrent));
 
   // 레이아웃 Y
   let cursor = gyoSectionTop + 30;
-  const mathMidRowY = cursor;
-  cursor += ROW_H;
-  const mathAdvTop = cursor;
-  cursor += MATH_GYO_ADVANCED.length * ROW_H + 8;
-  const sciMidRowY = cursor;
-  cursor += ROW_H;
-  const sciAdvTop = cursor;
-  cursor += SCI_GYO_ADVANCED.length * ROW_H;
+  const mathLaneTop = cursor;
+  cursor += mathLane.levels * ROW_H + 8;
+  const sciLaneTop = cursor;
+  cursor += sciLane.levels * ROW_H;
   const gyoBottom = cursor + PAD;
   const chartH = gyoBottom + 8;
 
@@ -169,103 +203,56 @@ export default function RemainingRoadmap({
     };
   }, [drag, atIdx, onShiftChange]);
 
-  // 드래그 2) 교과(중등) 진도 전체 이동
+  // 드래그 2) 교과 블록 개별 이동(겹침 허용)
   useEffect(() => {
-    if (!gyoDrag) return;
+    if (!blockDrag) return;
     const onMove = (e: PointerEvent) => {
-      const d = gyoDragRef.current;
+      const d = blockDragRef.current;
       if (!d) return;
       const deltaCols = Math.round((e.clientX - d.startX) / COL_W);
-      let newShift = d.origShift + deltaCols;
-      if (newShift < 0) newShift = 0;
-      if (newShift > 59 - atIdx) newShift = 59 - atIdx;
-      onGyoShiftChange(d.subject, newShift);
+      const next = Math.max(atIdx, Math.min(60 - d.dur, d.origStart + deltaCols));
+      onGyoBlockMove(d.key, next);
     };
-    const onUp = () => setGyoDrag(null);
+    const onUp = () => setBlockDrag(null);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [gyoDrag, atIdx, onGyoShiftChange]);
+  }, [blockDrag, atIdx, onGyoBlockMove]);
 
-  // 드래그 3) 개별 교과 블록(6개월) 이동
-  useEffect(() => {
-    if (!advDrag) return;
-    const onMove = (e: PointerEvent) => {
-      const d = advDragRef.current;
-      if (!d) return;
-      const deltaCols = Math.round((e.clientX - d.startX) / COL_W);
-      onGyoBlockMove(d.name, clampStart(d.origStart + deltaCols));
-    };
-    const onUp = () => setAdvDrag(null);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [advDrag, atIdx, onGyoBlockMove]);
-
-  // 중등 교과 투영 막대(과목 전체 드래그)
-  const renderMidItem = (p: GyoProjection, y: number, key: string, paceMonths: number, subject: 'math' | 'sci') => {
-    const vStart = Math.max(axisStart, p.startIdx);
-    const vEnd = Math.min(axisEnd + 1, p.startIdx + paceMonths);
+  const renderBlock = (b: GyoBlock & { level: number }, laneTop: number) => {
+    const vStart = Math.max(axisStart, b.start);
+    const vEnd = Math.min(axisEnd + 1, b.start + b.dur);
     if (vEnd <= vStart) return null;
     const x = xOf(vStart);
     const w = (vEnd - vStart) * COL_W;
-    const dragging = gyoDrag?.subject === subject;
+    const y = laneTop + b.level * ROW_H;
+    const dragging = blockDrag?.key === b.key;
     return (
       <g
-        key={key}
-        opacity={p.done ? 0.4 : 1}
+        key={b.key}
+        opacity={b.done ? 0.4 : 1}
         style={{ cursor: 'grab' }}
         onPointerDown={(ev) => {
           ev.preventDefault();
-          setGyoDrag({ subject, startX: ev.clientX, origShift: gyoShift[subject] });
+          setBlockDrag({ key: b.key, startX: ev.clientX, origStart: b.start, dur: b.dur });
         }}
       >
-        <rect x={x} y={y} width={w} height={BAR_H} rx={4} fill={COLORS.교과.fill}
-          stroke={dragging || p.current ? '#D6443B' : '#B4B2A9'} strokeWidth={dragging || p.current ? 2 : 0.8} />
+        <rect x={x} y={y} width={w} height={BAR_H} rx={5} fill={COLORS.교과.fill}
+          stroke={dragging || b.current ? '#D6443B' : '#8C8A80'} strokeWidth={dragging ? 2.5 : b.current ? 2 : 1} />
         {w >= 30 && (
-          <text x={x + w / 2} y={y + BAR_H / 2 + 3.5} fontSize={9} fill={COLORS.교과.text} textAnchor="middle">
-            {p.name}
+          <text x={x + w / 2} y={y + BAR_H / 2 + 3.5} fontSize={9.5} fill={COLORS.교과.text} textAnchor="middle" fontWeight={600}>
+            {b.name}
           </text>
         )}
       </g>
     );
   };
 
-  // 개별 6개월 교과 블록(각각 따로 드래그, 겹침 허용)
-  const renderAdvBlock = (name: string, startIdx: number, y: number) => {
-    const vStart = Math.max(axisStart, startIdx);
-    const vEnd = Math.min(axisEnd + 1, startIdx + GYO_BLOCK_MONTHS);
-    if (vEnd <= vStart) return null;
-    const x = xOf(vStart);
-    const w = (vEnd - vStart) * COL_W;
-    const dragging = advDrag?.name === name;
-    return (
-      <g
-        key={`adv-${name}`}
-        style={{ cursor: 'grab' }}
-        onPointerDown={(ev) => {
-          ev.preventDefault();
-          setAdvDrag({ name, startX: ev.clientX, origStart: startIdx });
-        }}
-      >
-        <rect x={x} y={y} width={w} height={BAR_H} rx={5} fill={COLORS.교과.fill}
-          stroke={dragging ? '#D6443B' : '#8C8A80'} strokeWidth={dragging ? 2.5 : 1} />
-        <text x={x + w / 2} y={y + BAR_H / 2 + 3.5} fontSize={9.5} fill={COLORS.교과.text} textAnchor="middle" fontWeight={600}>
-          {name}
-        </text>
-      </g>
-    );
-  };
-
-  const rowLabel = (text: string, y: number, muted = false) => (
-    <text x={12} y={y + BAR_H / 2 + 3} fontSize={muted ? 10 : 11} fontWeight={muted ? 400 : 500} fill={muted ? '#6B6A64' : '#2C2C2A'}>
+  const rowLabel = (text: string, y: number) => (
+    <text x={12} y={y + BAR_H / 2 + 3} fontSize={11} fontWeight={500} fill="#2C2C2A">
       {text}
     </text>
   );
@@ -366,37 +353,17 @@ export default function RemainingRoadmap({
         );
       })}
 
-      {/* 교과 섹션 */}
+      {/* 교과 섹션: 과목별 한 레인, 모든 블록 개별 드래그·겹침 허용(겹치면 쌓임) */}
       <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke="#C9C7BD" strokeWidth={1} />
       <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill="#2C2C2A">
-        교과 과정 (막대를 드래그해 시기 배치 · 고등 과목은 개별 이동/겹침 가능)
+        교과 과정 (블록을 각각 드래그해 배치 · 겹치면 아래로 쌓임 · 개월수는 관리 탭)
       </text>
 
-      {/* 수학 교과: 중등(순차) + 고등(개별 6개월) */}
-      {rowLabel('수학 교과(중등)', mathMidRowY)}
-      {mathMidProj.map((p, i) => renderMidItem(p, mathMidRowY, `mmid-${i}`, gyo.mathMonthsPerItem, 'math'))}
-      {MATH_GYO_ADVANCED.map((name, j) => {
-        const y = mathAdvTop + j * ROW_H;
-        return (
-          <g key={`mathadv-${name}`}>
-            {rowLabel(name, y, true)}
-            {renderAdvBlock(name, advStart(name, mathAdvBase + j * GYO_BLOCK_MONTHS), y)}
-          </g>
-        );
-      })}
+      {rowLabel('수학 교과', mathLaneTop)}
+      {mathLane.placed.map((b) => renderBlock(b, mathLaneTop))}
 
-      {/* 과학 교과: 중등(순차) + 고등(물리·화학 개별 6개월) */}
-      {rowLabel('과학 교과(중등)', sciMidRowY)}
-      {sciMidProj.map((p, i) => renderMidItem(p, sciMidRowY, `smid-${i}`, gyo.sciMonthsPerItem, 'sci'))}
-      {SCI_GYO_ADVANCED.map((name, j) => {
-        const y = sciAdvTop + j * ROW_H;
-        return (
-          <g key={`sciadv-${name}`}>
-            {rowLabel(name, y, true)}
-            {renderAdvBlock(name, advStart(name, sciAdvBase), y)}
-          </g>
-        );
-      })}
+      {rowLabel('과학 교과', sciLaneTop)}
+      {sciLane.placed.map((b) => renderBlock(b, sciLaneTop))}
 
       {/* 현재 월 세로선 */}
       <line x1={xOf(atIdx)} y1={HEADER_H} x2={xOf(atIdx)} y2={chartH} stroke="#D6443B" strokeWidth={1.5} strokeDasharray="4 3" />

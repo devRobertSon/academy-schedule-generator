@@ -256,30 +256,52 @@ export default function AdminPage({ store, onChange }: Props) {
         </table>
       </div>
 
-      <h3>교과 진도 투영 속도</h3>
+      <h3>교과 블록 개월수</h3>
       <p className="muted">
-        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵에서 단원 진도를
-        몇 개월 간격으로 펼쳐 보여줄지 설정합니다.
+        교과(수학·과학) 수업 자체는 위 표에서 <b>트랙 = 공통</b> 과정으로 관리합니다. 아래는 로드맵에서 각 교과
+        블록(학기·고등 과목)을 몇 개월 길이로 표시할지 설정합니다. 블록은 로드맵에서 각각 자유롭게 드래그해
+        배치할 수 있습니다.
       </p>
       <div className="gyo-config">
         <fieldset>
-          <legend>투영 속도(개월/단원)</legend>
+          <legend>수학 교과 (개월)</legend>
           <label>
-            수학
+            중등 학기 블록
             <input
               type="number"
               min={1}
-              value={gyo.mathMonthsPerItem}
-              onChange={(e) => setGyo({ mathMonthsPerItem: Math.max(1, Number(e.target.value)) })}
+              value={gyo.mathMidMonths}
+              onChange={(e) => setGyo({ mathMidMonths: Math.max(1, Number(e.target.value)) })}
             />
           </label>
           <label>
-            과학
+            고등 블록(공통수학1~기하)
             <input
               type="number"
               min={1}
-              value={gyo.sciMonthsPerItem}
-              onChange={(e) => setGyo({ sciMonthsPerItem: Math.max(1, Number(e.target.value)) })}
+              value={gyo.mathAdvMonths}
+              onChange={(e) => setGyo({ mathAdvMonths: Math.max(1, Number(e.target.value)) })}
+            />
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend>과학 교과 (개월)</legend>
+          <label>
+            중등 학기 블록
+            <input
+              type="number"
+              min={1}
+              value={gyo.sciMidMonths}
+              onChange={(e) => setGyo({ sciMidMonths: Math.max(1, Number(e.target.value)) })}
+            />
+          </label>
+          <label>
+            고등 블록(물리·화학)
+            <input
+              type="number"
+              min={1}
+              value={gyo.sciAdvMonths}
+              onChange={(e) => setGyo({ sciAdvMonths: Math.max(1, Number(e.target.value)) })}
             />
           </label>
         </fieldset>
