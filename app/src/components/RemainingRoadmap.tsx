@@ -3,9 +3,9 @@ import {
   COLORS,
   Course,
   GRADES,
-  SCI_GYO_MID_SEQUENCE,
   Subject,
   Track,
+  courseColor,
   endPos,
   gradeOfIndex,
   monthOfIndex,
@@ -22,8 +22,8 @@ const LABEL_W = 132;
 const GRADE_H = 26;
 const MONTH_H = 20;
 const HEADER_H = GRADE_H + MONTH_H;
-const BAR_H = 32;
-const ROW_H = 40;
+const BAR_H = 34;
+const ROW_H = 42;
 const PAD = 10;
 const EDGE = 7; // 좌우 가장자리(기간 조절) 폭(px)
 
@@ -161,7 +161,7 @@ export default function RemainingRoadmap({
 
   // 교과(공통) — 학생 진도 기준 오늘부터 순서대로
   const mathCurrent = form.mathIdx + 1;
-  const sciCurrent = form.sciMode === 'mid' ? form.sciIdx + 1 : SCI_GYO_MID_SEQUENCE.length;
+  const sciCurrent = form.sciIdx + 1;
   const toGyoBar = (e: ReturnType<typeof gyoLaneLayout>[number]): Bar => ({
     id: e.course.id,
     course: e.course,
@@ -170,8 +170,8 @@ export default function RemainingRoadmap({
     shift: e.shift,
     isGyo: true,
     emphasize: e.current,
-    fill: COLORS.교과.fill,
-    text: COLORS.교과.text,
+    fill: courseColor(e.course).fill,
+    text: courseColor(e.course).text,
   });
   const mathLane = stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts).map(toGyoBar));
   const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
@@ -296,11 +296,11 @@ export default function RemainingRoadmap({
         {w >= 28 && (
           <text
             x={x + w / 2}
-            y={yTop + BAR_H / 2 + 4}
-            fontSize={10.5}
+            y={yTop + BAR_H / 2 + 4.5}
+            fontSize={w >= 70 ? 13 : 11}
             fill={b.text}
             textAnchor="middle"
-            fontWeight={600}
+            fontWeight={700}
             style={{ pointerEvents: 'none' }}
           >
             {b.course.name}
@@ -332,7 +332,7 @@ export default function RemainingRoadmap({
   };
 
   const rowLabel = (text: string, top: number) => (
-    <text x={12} y={top + BAR_H / 2 + 4} fontSize={11} fontWeight={600} fill={INK}>
+    <text x={12} y={top + BAR_H / 2 + 5} fontSize={14} fontWeight={700} fill={INK}>
       {text}
     </text>
   );

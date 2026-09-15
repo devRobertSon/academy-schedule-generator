@@ -193,7 +193,6 @@ select {
   color: var(--muted);
   font-weight: 500;
 }
-.chip select,
 .chip input {
   border: none;
   background: transparent;
@@ -208,6 +207,88 @@ select {
   color: #7d9cc4;
   font-weight: 500;
 }
+/* 칩 안의 셀렉트: 브라우저 기본 박스 대신 칩과 한 몸처럼 */
+.chip select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%230B4E9F' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+    no-repeat right 6px center;
+  color: var(--blue-text);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 2px 20px 2px 4px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  max-width: 180px;
+}
+.chip select:hover {
+  background-color: rgba(47, 159, 227, 0.14);
+}
+.chip select:focus-visible {
+  box-shadow: 0 0 0 2px rgba(47, 159, 227, 0.45);
+}
+/* 열리는 목록(옵션) — 기본 스타일이 허용되는 범위 */
+.chip select option {
+  color: var(--ink);
+  background: #fff;
+  font-weight: 500;
+  padding: 6px 10px;
+}
+.chip select option:checked {
+  background: var(--tint);
+  color: var(--blue-text);
+  font-weight: 700;
+}
+/* Chrome 커스터마이즈 셀렉트 지원 시: 목록 자체를 둥글고 브랜드색으로 */
+@supports (appearance: base-select) {
+  .chip select,
+  .chip select::picker(select) {
+    appearance: base-select;
+  }
+  .chip select {
+    background-image: none;
+    padding-right: 6px;
+  }
+  .chip select::picker-icon {
+    content: '';
+    width: 10px;
+    height: 6px;
+    margin-left: 6px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%230B4E9F' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+      no-repeat center;
+    transition: transform 0.15s;
+  }
+  .chip select:open::picker-icon {
+    transform: rotate(180deg);
+  }
+  .chip select::picker(select) {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+    margin-top: 6px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(29, 34, 96, 0.18);
+    min-width: anchor-size(width);
+  }
+  .chip select option {
+    border-radius: 8px;
+    padding: 7px 12px;
+  }
+  .chip select option:hover,
+  .chip select option:focus-visible {
+    background: var(--tint-2);
+  }
+  .chip select option:checked {
+    background: var(--tint);
+    color: var(--blue-text);
+  }
+  .chip select option::checkmark {
+    display: none;
+  }
+}
 .chip.target {
   background: var(--navy);
   border-color: var(--navy);
@@ -218,9 +299,21 @@ select {
 }
 .chip.target select {
   color: #fff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+.chip.target select:hover {
+  background-color: rgba(255, 255, 255, 0.14);
 }
 .chip.target select option {
   color: var(--ink);
+}
+@supports (appearance: base-select) {
+  .chip.target select {
+    background-image: none;
+  }
+  .chip.target select::picker-icon {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  }
 }
 .chip.ghost {
   background: #fff;
@@ -679,5 +772,17 @@ select {
   @page {
     size: A4 landscape;
     margin: 10mm;
+  }
+}
+
+/* 칩 셀렉트 화살표 세로 정렬 */
+.chip select {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.3;
+}
+@supports (appearance: base-select) {
+  .chip select::picker-icon {
+    align-self: center;
   }
 }

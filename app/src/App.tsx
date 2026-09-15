@@ -7,8 +7,7 @@ import ExportBar from './components/ExportBar';
 import {
   Course,
   MATH_GYO_SEQUENCE,
-  SCI_GYO_HS_PARALLEL,
-  SCI_GYO_MID_SEQUENCE,
+  SCI_GYO_SEQUENCE,
   TimeSlot,
   Track,
   TRACKS,
@@ -25,8 +24,7 @@ const DEFAULT_CONSULT: ConsultInfo = {
   grade: '중1',
   month: 6,
   mathIdx: MATH_GYO_SEQUENCE.indexOf('중3-2학기'),
-  sciMode: 'mid',
-  sciIdx: SCI_GYO_MID_SEQUENCE.indexOf('중2-2학기'),
+  sciIdx: SCI_GYO_SEQUENCE.indexOf('중2-2학기'),
 };
 
 /** 저장/불러오기 파일 형식: 과정 데이터 + 이 학생의 상담 상태 */
@@ -69,11 +67,8 @@ export default function App() {
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
   const progress = useMemo(
-    () => ({
-      mathCurrent: info.mathIdx + 1,
-      sciCurrent: info.sciMode === 'mid' ? info.sciIdx + 1 : SCI_GYO_MID_SEQUENCE.length,
-    }),
-    [info.mathIdx, info.sciMode, info.sciIdx]
+    () => ({ mathCurrent: info.mathIdx + 1, sciCurrent: info.sciIdx + 1 }),
+    [info.mathIdx, info.sciIdx]
   );
   const [viewIdx, setViewIdx] = useState<number>(atIdx);
   useEffect(() => {
@@ -86,8 +81,7 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mathProgress = MATH_GYO_SEQUENCE[info.mathIdx];
-  const sciSeq = info.sciMode === 'mid' ? SCI_GYO_MID_SEQUENCE : SCI_GYO_HS_PARALLEL;
-  const sciProgress = sciSeq[info.sciIdx];
+  const sciProgress = SCI_GYO_SEQUENCE[info.sciIdx];
   const today = new Date().toLocaleDateString('ko-KR');
   const remaining = remainingCourses(visibleCourses, track, atIdx, shifts);
 
@@ -219,9 +213,6 @@ export default function App() {
                 <span className="num">1</span>
                 {track} 합격까지 남은 과목
                 <span className="muted">· {remaining.length}개</span>
-                <span className="muted no-print" style={{ marginLeft: 'auto', fontWeight: 400 }}>
-                  블록 클릭 = 편집/✕제거 · 몸통 드래그 = 시기 이동 · 가장자리 드래그 = 기간(0.5월)
-                </span>
               </h2>
               <div className="roadmap-scroll">
                 <RemainingRoadmap

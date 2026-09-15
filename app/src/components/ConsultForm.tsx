@@ -1,20 +1,11 @@
-import {
-  Grade,
-  GRADES,
-  MATH_GYO_SEQUENCE,
-  SCI_GYO_HS_PARALLEL,
-  SCI_GYO_MID_SEQUENCE,
-} from '../data/roadmap';
-
-export type SciMode = 'mid' | 'hs';
+import { Grade, GRADES, MATH_GYO_SEQUENCE, SCI_GYO_SEQUENCE } from '../data/roadmap';
 
 export interface ConsultInfo {
   studentName: string;
   grade: Grade;
   month: number; // 1..12
-  mathIdx: number;
-  sciMode: SciMode;
-  sciIdx: number;
+  mathIdx: number; // MATH_GYO_SEQUENCE 인덱스(완료한 단계)
+  sciIdx: number; // SCI_GYO_SEQUENCE 인덱스(완료한 단계)
 }
 
 interface Props {
@@ -27,7 +18,6 @@ const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
 /** 상담 정보 — 상단 칩 스트립(각 칩이 곧 입력) */
 export default function ConsultForm({ value, onChange }: Props) {
   const set = (patch: Partial<ConsultInfo>) => onChange({ ...value, ...patch });
-  const sciSeq = value.sciMode === 'mid' ? SCI_GYO_MID_SEQUENCE : SCI_GYO_HS_PARALLEL;
 
   return (
     <>
@@ -75,18 +65,9 @@ export default function ConsultForm({ value, onChange }: Props) {
       </label>
 
       <label className="chip">
-        <span className="k">과학</span>
-        <select
-          id="sciMode"
-          value={value.sciMode}
-          onChange={(e) => set({ sciMode: e.target.value as SciMode, sciIdx: 0 })}
-        >
-          <option value="mid">중등</option>
-          <option value="hs">고등 진입</option>
-        </select>
-        <span className="k">완료</span>
+        <span className="k">과학 완료</span>
         <select id="sciIdx" value={value.sciIdx} onChange={(e) => set({ sciIdx: Number(e.target.value) })}>
-          {sciSeq.map((name, i) => (
+          {SCI_GYO_SEQUENCE.map((name, i) => (
             <option key={name} value={i}>
               {name}
             </option>
