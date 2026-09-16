@@ -268,6 +268,8 @@ export interface Milestone {
 export interface TrackPlan {
   phases: Phase[];
   milestones: Milestone[];
+  /** 로드맵 가로축을 이 달까지만 표시(없으면 중3 2월까지) */
+  roadmapEnd?: YM;
 }
 const ym = (grade: Grade, month: number, half = false): YM => ({ grade, month, half });
 export const TRACK_PLANS: Record<Track, TrackPlan> = {
@@ -283,6 +285,7 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
       { name: '영재학교 2차 평가(지필)', at: ym('중3', 7) }, // 7월 초
       { name: '영재학교 3차 평가(면접)', at: ym('중3', 8) }, // 7월과 8월 사이
     ],
+    roadmapEnd: ym('중3', 11), // 영재학교는 중3 11월까지만 표시
   },
   과학고: {
     phases: [

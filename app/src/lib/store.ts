@@ -22,7 +22,8 @@ export function mergePlans(p?: Partial<Record<Track, TrackPlan>> | null): Record
   const out = {} as Record<Track, TrackPlan>;
   for (const t of TRACKS) {
     const v = p?.[t];
-    out[t] = v && Array.isArray(v.phases) && Array.isArray(v.milestones) ? v : def[t];
+    // 저장본에 '로드맵 표시 종료'가 없으면(이전 버전) 기본값을 채움
+    out[t] = v && Array.isArray(v.phases) && Array.isArray(v.milestones) ? { ...v, roadmapEnd: v.roadmapEnd ?? def[t].roadmapEnd } : def[t];
   }
   return out;
 }

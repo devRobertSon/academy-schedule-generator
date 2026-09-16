@@ -106,7 +106,7 @@ export default function AdminPage({ store, onChange }: Props) {
   // ── 학교별 여정 단계·시험 편집 ────────────────────────
   const setPlan = (t: Track, fn: (p: TrackPlan) => TrackPlan) =>
     onChange({ ...store, plans: { ...store.plans, [t]: fn(store.plans[t]) } });
-  const YMSel = ({ value, onChange: oc }: { value: YM; onChange: (v: YM) => void }) => (
+  const YMSel = ({ value, onChange: oc, noHalf }: { value: YM; onChange: (v: YM) => void; noHalf?: boolean }) => (
     <span className="ym">
       <select value={value.grade} onChange={(e) => oc({ ...value, grade: e.target.value as Grade })}>
         {GRADES.map((g) => (
@@ -122,10 +122,12 @@ export default function AdminPage({ store, onChange }: Props) {
           </option>
         ))}
       </select>
-      <select value={value.half ? '1' : '0'} title="월초 / 월중순" onChange={(e) => oc({ ...value, half: e.target.value === '1' })}>
-        <option value="0">초</option>
-        <option value="1">중순</option>
-      </select>
+      {!noHalf && (
+        <select value={value.half ? '1' : '0'} title="월초 / 월중순" onChange={(e) => oc({ ...value, half: e.target.value === '1' })}>
+          <option value="0">초</option>
+          <option value="1">중순</option>
+        </select>
+      )}
     </span>
   );
 
@@ -315,6 +317,25 @@ export default function AdminPage({ store, onChange }: Props) {
           return (
             <fieldset key={t}>
               <legend>{t}</legend>
+              <div className="plan-group">
+                <div className="plan-title">로드맵 표시 종료</div>
+                <div className="plan-row">
+                  <label className="plan-check">
+                    <input
+                      type="checkbox"
+                      checked={!!p.roadmapEnd}
+                      onChange={(e) =>
+                        setPlan(t, (pp) => ({ ...pp, roadmapEnd: e.target.checked ? { grade: '중3', month: 11 } : undefined }))
+                      }
+                    />
+                    중3 2월 전에 끝내기
+                  </label>
+                  {p.roadmapEnd && (
+                    <YMSel noHalf value={p.roadmapEnd} onChange={(v) => setPlan(t, (pp) => ({ ...pp, roadmapEnd: { grade: v.grade, month: v.month } }))} />
+                  )}
+                  <span className="muted">{p.roadmapEnd ? `${p.roadmapEnd.grade} ${p.roadmapEnd.month}월까지 표시` : '중3 2월까지 표시'}</span>
+                </div>
+              </div>
               <div className="plan-group">
                 <div className="plan-title">단계</div>
                 {p.phases.map((ph: Phase, i: number) => (

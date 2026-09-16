@@ -9,10 +9,12 @@ import {
   TrackPlan,
   courseColor,
   endPos,
+  gmIndex,
   gradeOfIndex,
   monthOfIndex,
   monthToSeason,
   startPos,
+  ymLabel,
 } from '../data/roadmap';
 import { gyoLaneLayout, remainingCourses } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
@@ -41,6 +43,49 @@ const SEASON_TINT: Record<string, string> = {
 };
 /** 글자 폭 대략 추정(한글 = fs, 영문·기호 = 0.6fs) */
 const estTextWidth = (s: string, fs: number) => s.split('').reduce((acc, ch) => acc + (/[ -~]/.test(ch) ? 0.6 : 1) * fs, 0);
+interface FitLabel {
+  lines: string[];
+  fontSize: number;
+  /** 이름을 다 못 보여줘서 줄임말만 표시 → 마우스 오버 툴팁으로 전체 이름 */
+  abbreviated: boolean;
+}
+/**
+ * 블록 안에 과목 이름 맞추기:
+ * 1) 한 줄(13→10px) → 2) 두 줄로 나눠서(12→8px) → 3) 마지막 단어만(면접·면담 등, 11→8px)
+ */
+export function fitLabel(name: string, w: number, h: number): FitLabel {
+  const avail = w - 8;
+  for (let fs = 13; fs >= 10; fs -= 0.5) {
+    if (estTextWidth(name, fs) <= avail) return { lines: [name], fontSize: fs, abbreviated: false };
+  }
+  // 두 줄: 공백 위치 중 두 줄 폭이 가장 고른 곳에서 나눔(공백이 없으면 가운데)
+  const splits: [string, string][] = [];
+  for (let i = 1; i < name.length; i++) {
+    if (name[i] === ' ') splits.push([name.slice(0, i), name.slice(i + 1)]);
+  }
+  if (splits.length === 0 && name.length >= 4) {
+    const mid = Math.ceil(name.length / 2);
+    splits.push([name.slice(0, mid), name.slice(mid)]);
+  }
+  if (splits.length > 0) {
+    const best = splits.reduce((a, b) =>
+      Math.max(estTextWidth(b[0], 10), estTextWidth(b[1], 10)) < Math.max(estTextWidth(a[0], 10), estTextWidth(a[1], 10)) ? b : a
+    );
+    for (let fs = 12; fs >= 8; fs -= 0.5) {
+      if (fs * 1.15 * 2 <= h - 4 && estTextWidth(best[0], fs) <= avail && estTextWidth(best[1], fs) <= avail) {
+        return { lines: best, fontSize: fs, abbreviated: false };
+      }
+    }
+  }
+  // 줄임말: 마지막 단어(예: '과학고 파이널 면접' → '면접')
+  const words = name.trim().split(/\s+/);
+  const short = words.length > 1 ? words[words.length - 1] : name;
+  for (let fs = 11; fs >= 8; fs -= 0.5) {
+    if (estTextWidth(short, fs) <= avail) return { lines: [short], fontSize: fs, abbreviated: true };
+  }
+  return { lines: [], fontSize: 8, abbreviated: true };
+}
+
 const INK = '#1A2340';
 const MUTED = '#5B6B85';
 const LINE = '#D9E3F0';
@@ -141,9 +186,11 @@ export default function RemainingRoadmap({
   const [selected, setSelected] = useState<string | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [hoverMs, setHoverMs] = useState<number | null>(null); // 마우스를 올린 시험 ◆
+  const [hoverBar, setHoverBar] = useState<string | null>(null); // 마우스를 올린(줄임말) 블록 → 전체 이름 툴팁
 
-  const axisStart = Math.min(atIdx, 59);
-  const axisEnd = 59;
+  // 가로축 끝: 학교별 '로드맵 표시 종료'(예: 영재학교 중3 11월) 없으면 중3 2월
+  const axisEnd = plan.roadmapEnd ? Math.min(59, gmIndex(plan.roadmapEnd.grade, plan.roadmapEnd.month)) : 59;
+  const axisStart = Math.min(atIdx, axisEnd);
   const cols = Math.max(1, axisEnd - axisStart + 1);
   const chartW = LABEL_W + cols * COL_W;
   const xOf = (pos: number) => LABEL_W + (pos - axisStart) * COL_W;
@@ -205,6 +252,11 @@ export default function RemainingRoadmap({
   const mathLaneTop = gyoSectionTop + 30;
   const sciLaneTop = mathLaneTop + mathLane.levels * ROW_H + 8;
   const chartH = sciLaneTop + sciLane.levels * ROW_H + PAD + 8;
+  const allPlaced = [
+    ...specLayout.flatMap((l) => l.lane.placed.map((b) => ({ b, top: l.top }))),
+    ...mathLane.placed.map((b) => ({ b, top: mathLaneTop })),
+    ...sciLane.placed.map((b) => ({ b, top: sciLaneTop })),
+  ];
 
   // 드래그 1) 몸통: 수강 시기 이동(0.5월 단위, 학생별)
   useEffect(() => {
@@ -215,7 +267,7 @@ export default function RemainingRoadmap({
       const delta = snap((e.clientX - d.startX) / scaleOf());
       if (delta !== 0) movedRef.current = true;
       const minShift = atIdx - d.baseStart; // 과거로는 못 감
-      const maxShift = 60 - (d.baseEnd + 0.5); // 중3 2월 이내
+      const maxShift = axisEnd + 1 - (d.baseEnd + 0.5); // 로드맵 끝(기본 중3 2월) 이내
       onShiftChange(d.id, clamp(d.origShift + delta, minShift, maxShift));
     };
     const onUp = () => {
@@ -243,7 +295,7 @@ export default function RemainingRoadmap({
       if (!d) return;
       const delta = snap((e.clientX - d.startX) / scaleOf());
       if (d.edge === 'R') {
-        const maxEnd = d.origEndPos + (60 - d.visEnd);
+        const maxEnd = d.origEndPos + (axisEnd + 1 - d.visEnd);
         const newEnd = clamp(d.origEndPos + delta, d.origStartPos + 0.5, maxEnd);
         onCourseRange(d.id, { startPos: d.origStartPos, endPos: newEnd });
       } else if (!d.isGyo) {
@@ -296,14 +348,7 @@ export default function RemainingRoadmap({
     const yTop = laneTop + b.level * ROW_H;
     const sel = selected === b.id;
     const active = move?.id === b.id || resize?.id === b.id;
-    // 과목 이름이 블록 폭을 넘으면 글자 크기를 줄여 맞춤(한글 1em, 영문/숫자 0.6em 가정)
-    const name = b.course.name;
-    const estWidth = (fs: number) => estTextWidth(name, fs);
-    let fontSize = 13;
-    while (fontSize > 8 && estWidth(fontSize) > w - 10) fontSize -= 0.5;
-    // 최소 크기로도 안 들어가면(1달짜리 블록 등) 이름을 블록 바깥 오른쪽(끝이면 왼쪽)에 표시
-    const fits = estWidth(fontSize) <= w - 6;
-    const outsideRight = x + w + 6 + estWidth(11) <= chartW;
+    const label = fitLabel(b.course.name, w, BAR_H);
     return (
       <g key={b.id}>
         <rect
@@ -317,39 +362,39 @@ export default function RemainingRoadmap({
           strokeWidth={sel || active ? 2.5 : b.emphasize ? 1.5 : 0.8}
           style={{ cursor: 'grab' }}
           onPointerDown={(ev) => startMove(ev, b)}
+          onMouseEnter={() => label.abbreviated && setHoverBar(b.id)}
+          onMouseLeave={() => setHoverBar((h) => (h === b.id ? null : h))}
         />
-        {fits ? (
-          <text
-            x={x + w / 2}
-            y={yTop + BAR_H / 2 + fontSize * 0.35}
-            fontSize={fontSize}
-            fill={b.text}
-            textAnchor="middle"
-            fontWeight={700}
-            style={{ pointerEvents: 'none' }}
-          >
-            {name}
-          </text>
-        ) : (
-          <text
-            x={outsideRight ? x + w + 6 : x - 6}
-            y={yTop + BAR_H / 2 + 4}
-            fontSize={11}
-            fill={b.text}
-            textAnchor={outsideRight ? 'start' : 'end'}
-            fontWeight={700}
-            style={{ pointerEvents: 'none' }}
-          >
-            {name}
-          </text>
-        )}
         {/* 좌우 가장자리: 기간 조절 */}
         <rect x={x} y={yTop} width={EDGE} height={BAR_H} fill="transparent" style={{ cursor: 'ew-resize' }} onPointerDown={(ev) => startResize(ev, b, 'L')} />
         <rect x={x + w - EDGE} y={yTop} width={EDGE} height={BAR_H} fill="transparent" style={{ cursor: 'ew-resize' }} onPointerDown={(ev) => startResize(ev, b, 'R')} />
+      </g>
+    );
+  };
+
+  /** 블록 위 글자 레이어 — 모든 블록보다 위에 그려서 이웃 블록에 가려지지 않게 */
+  const renderLabel = (b: Bar & { level: number }, laneTop: number) => {
+    const vStart = Math.max(axisStart, b.startIdx);
+    const vEnd = Math.min(axisEnd + 1, b.endIdx + 0.5);
+    if (vEnd <= vStart) return null;
+    const x = xOf(vStart);
+    const w = (vEnd - vStart) * COL_W;
+    const yTop = laneTop + b.level * ROW_H;
+    const sel = selected === b.id;
+    const { lines, fontSize } = fitLabel(b.course.name, w, BAR_H);
+    const lineH = fontSize * 1.15;
+    const firstY = yTop + BAR_H / 2 - ((lines.length - 1) * lineH) / 2 + fontSize * 0.35;
+    return (
+      <g key={`lb-${b.id}`} style={{ pointerEvents: 'none' }}>
+        {lines.map((ln, i) => (
+          <text key={i} x={x + w / 2} y={firstY + i * lineH} fontSize={fontSize} fill={b.text} textAnchor="middle" fontWeight={700}>
+            {ln}
+          </text>
+        ))}
         {/* 선택 시 오른쪽 위 ✕ (이 학생 로드맵에서 제거) */}
         {sel && (
           <g
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
             onPointerDown={(ev) => {
               ev.preventDefault();
               ev.stopPropagation();
@@ -374,8 +419,8 @@ export default function RemainingRoadmap({
     </text>
   );
 
-  if (atIdx >= 59) {
-    return <p className="muted">중3 2월 이후로는 남은 과정이 없습니다.</p>;
+  if (atIdx > axisEnd) {
+    return <p className="muted">{ymLabel(axisEnd)} 이후로는 표시할 로드맵이 없습니다. (관리 탭 → 로드맵 표시 종료)</p>;
   }
 
   const popupCourse = popupId ? courses.find((c) => c.id === popupId) : undefined;
@@ -478,6 +523,9 @@ export default function RemainingRoadmap({
             {l.lane.placed.map((b) => renderBar(b, l.top))}
           </g>
         ))}
+        {specLayout.map((l) => (
+          <g key={`spec-lb-${l.subject}`}>{l.lane.placed.map((b) => renderLabel(b, l.top))}</g>
+        ))}
         {specLayout.length === 0 && (
           <text x={LABEL_W + 8} y={HEADER_H + PAD + BAR_H / 2 + 4} fontSize={11} fill={MUTED}>
             남은 특화 과정이 없습니다.
@@ -493,6 +541,9 @@ export default function RemainingRoadmap({
         {mathLane.placed.map((b) => renderBar(b, mathLaneTop))}
         {rowLabel('과학 교과', sciLaneTop)}
         {sciLane.placed.map((b) => renderBar(b, sciLaneTop))}
+        {/* 글자 레이어(블록보다 위) */}
+        {mathLane.placed.map((b) => renderLabel(b, mathLaneTop))}
+        {sciLane.placed.map((b) => renderLabel(b, sciLaneTop))}
 
         {/* 현재 월 세로선 */}
         <line x1={xOf(atIdx)} y1={HEADER_H} x2={xOf(atIdx)} y2={chartH} stroke={BRAND} strokeWidth={1.5} strokeDasharray="4 3" />
@@ -536,6 +587,31 @@ export default function RemainingRoadmap({
           // 오른쪽으로 펼치되 차트를 벗어나면 왼쪽으로
           const x0 = xOf(pos) + 12 + w <= chartW ? xOf(pos) + 12 : xOf(pos) - 12 - w;
           const y0 = cy - h / 2;
+          return (
+            <g pointerEvents="none">
+              <rect x={x0} y={y0} width={w} height={h} rx={6} fill={NAVY} opacity={0.96} />
+              <text x={x0 + w / 2} y={y0 + h / 2 + 4} fontSize={fs} fontWeight={700} fill="#fff" textAnchor="middle">
+                {label}
+              </text>
+            </g>
+          );
+        })()}
+        {/* 줄임말 블록 툴팁: 전체 과목 이름 */}
+        {hoverBar !== null && (() => {
+          const hit = allPlaced.find((p) => p.b.id === hoverBar);
+          if (!hit) return null;
+          const vStart = Math.max(axisStart, hit.b.startIdx);
+          const vEnd = Math.min(axisEnd + 1, hit.b.endIdx + 0.5);
+          const bx = xOf(vStart);
+          const bw = (vEnd - vStart) * COL_W;
+          const yTop = hit.top + hit.b.level * ROW_H;
+          const label = hit.b.course.name;
+          const fs = 11;
+          const w = Math.ceil(estTextWidth(label, fs)) + 18;
+          const h = 24;
+          let x0 = bx + bw / 2 - w / 2;
+          x0 = clamp(x0, LABEL_W, chartW - w);
+          const y0 = yTop - h - 4 >= HEADER_H ? yTop - h - 4 : yTop + BAR_H + 4;
           return (
             <g pointerEvents="none">
               <rect x={x0} y={y0} width={w} height={h} rx={6} fill={NAVY} opacity={0.96} />
