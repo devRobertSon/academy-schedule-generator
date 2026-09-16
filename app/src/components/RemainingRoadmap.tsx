@@ -686,7 +686,7 @@ export default function RemainingRoadmap({
         <div className={`hidden-courses no-print${hcOpen ? ' open' : ''}`}>
           <button type="button" className="hc-toggle" onClick={() => setHcOpen((o) => !o)} aria-expanded={hcOpen}>
             <span className="arrow">{hcOpen ? '▾' : '▸'}</span>
-            숨긴 과목 <b>{hiddenList.length}</b>개
+            고등 수학 <b>{hiddenList.length}</b>
             <small>클릭하면 로드맵에 추가됩니다</small>
           </button>
           {hcOpen && (

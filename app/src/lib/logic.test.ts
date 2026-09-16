@@ -163,9 +163,12 @@ describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', (
     expect(oct.blocks.map((b) => b.label)).toContain('유전 특강');
     expect(dec.blocks.map((b) => b.label)).not.toContain('유전 특강');
   });
-  it('담당 선생님이 블록에 포함된다', () => {
-    expect(tt.blocks.find((b) => b.label === 'KMO 대수')!.teacher).toBe('이정훈');
-    expect(tt.blocks.find((b) => b.label === '공통수학1')!.teacher).toBe('박서연');
+  it('기본 데이터에는 담당 선생님 이름이 없고, 관리 탭에서 넣으면 블록에 실린다', () => {
+    expect(tt.blocks.find((b) => b.label === 'KMO 대수')!.teacher).toBeUndefined();
+    expect(tt.blocks.find((b) => b.label === '공통수학1')!.teacher).toBeUndefined();
+    const withT = courses.map((c) => (c.id === 'yj_kmo_algebra' ? { ...c, teacher: '홍길동' } : c));
+    const tt2 = buildMonthlyTimetable(withT, '영재학교', atIdx, atIdx, {}, {}, PROGRESS);
+    expect(tt2.blocks.find((b) => b.label === 'KMO 대수')!.teacher).toBe('홍길동');
   });
   it('주 2회 과정(공통수학1)은 세션마다 블록이 생긴다', () => {
     const blocks = tt.blocks.filter((b) => b.courseId === 'gyo_math_6');

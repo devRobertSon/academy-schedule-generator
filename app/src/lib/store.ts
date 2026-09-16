@@ -7,7 +7,7 @@ export interface StoreData {
   plans: Record<Track, TrackPlan>;
 }
 
-const KEY = 'asg.store.v5'; // v5: 파이널 수학/과학 중3 6월까지, 파이널 면접·과학고 파이널 면담/면접(특화 면접) 추가
+const KEY = 'asg.store.v6'; // v6: 기본 데이터에서 담당 선생님 이름 제거 (v5: 파이널 과정 정리·특화 면접 추가)
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };
