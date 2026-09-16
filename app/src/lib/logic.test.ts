@@ -142,6 +142,13 @@ describe('교과 블록 배치(gyoLaneLayout) — 중2 9월', () => {
     const lane = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, { gyo_math_6: -100 });
     expect(lane.find((e) => e.course.name === '공통수학1')!.startIdx).toBe(42);
   });
+  it('과학을 아직 안 한 학생(완료 = 없음, current 0)은 중1-1학기부터 오늘에서 시작', () => {
+    const lane = gyoLaneLayout(courses, '과학', 0, atIdx, {});
+    expect(lane[0].course.name).toBe('중1-1학기');
+    expect(lane[0].startIdx).toBe(42);
+    expect(lane[0].current).toBe(true);
+    expect(lane.map((e) => e.course.name)).toContain('중3-2학기');
+  });
 });
 
 describe('월별 시간표(buildMonthlyTimetable) — 영재학교 중2 9월', () => {
