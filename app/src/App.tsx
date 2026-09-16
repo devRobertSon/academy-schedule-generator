@@ -13,8 +13,10 @@ import {
   Track,
   TRACKS,
   TrackPlan,
+  defaultHiddenIds,
   posToEndYM,
   posToStartYM,
+  ymLabel,
 } from './data/roadmap';
 import { journeySummary, nowIndex, remainingCourses } from './lib/logic';
 import { StoreData, loadStore, mergePlans, saveStore } from './lib/store';
@@ -65,7 +67,8 @@ export default function App() {
   const [track, setTrack] = useState<Track>('영재학교');
   const [shifts, setShifts] = useState<Record<string, number>>({});
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
-  const [hidden, setHidden] = useState<string[]>([]);
+  // 처음엔 수학 교과 공통수학2 다음 과목(대수~기하)을 접어 둠 → 로드맵 아래 '숨긴 과목'에서 클릭해 추가
+  const [hidden, setHidden] = useState<string[]>(() => defaultHiddenIds(store.courses));
   const [logoOk, setLogoOk] = useState(true);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
@@ -195,27 +198,32 @@ export default function App() {
               </h2>
               <div className="chip-bar">
                 <ConsultForm value={info} onChange={setInfo} />
-                <label className="chip target">
+                {/* 목표 학교: 목록을 펼쳐서 버튼으로 */}
+                <div className="seg" role="radiogroup" aria-label="목표 학교">
                   <span className="k">목표</span>
-                  <select value={track} onChange={(e) => setTrack(e.target.value as Track)}>
-                    {TRACKS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {firstExam && (
-                  <span className="chip stat" title={`${firstExam.name}까지`}>
-                    ◆ {firstExam.name}까지 <b>{firstExam.monthsLeft}개월</b>
-                  </span>
-                )}
-                {hidden.length > 0 && (
-                  <button className="chip ghost" onClick={() => setHidden([])}>
-                    제거한 블록 {hidden.length}개 복원
-                  </button>
-                )}
+                  {TRACKS.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      role="radio"
+                      aria-checked={track === t}
+                      className={track === t ? 'on' : ''}
+                      onClick={() => setTrack(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {journey.milestones.length > 0 && (
+                <div className="chip-bar exam-bar">
+                  {journey.milestones.map((m) => (
+                    <span key={m.name} className="chip stat" title={`${m.name}까지`}>
+                      ◆ {m.name} · {ymLabel(Math.floor(m.pos))} {m.half ? '중순' : '초'} · <b>{m.monthsLeft < 1 ? '이번 달' : `${m.monthsLeft}개월`}</b>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="hero-r">
               <button className="primary" onClick={saveFile}>
@@ -266,6 +274,8 @@ export default function App() {
                   }
                   onCourseChange={(course) => updateCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
                   onHide={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
+                  hiddenCourses={store.courses.filter((c) => hidden.includes(c.id))}
+                  onShow={(id) => setHidden((h) => h.filter((x) => x !== id))}
                 />
               </div>
               <JourneySummary summary={journey} />

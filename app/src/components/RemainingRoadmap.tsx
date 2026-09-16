@@ -16,7 +16,7 @@ import {
   startPos,
   ymLabel,
 } from '../data/roadmap';
-import { gyoLaneLayout, remainingCourses } from '../lib/logic';
+import { gyoLaneLayout, gyoSeqIndex, remainingCourses } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
 import CourseEditPopup from './CourseEditPopup';
 
@@ -108,6 +108,9 @@ interface Props {
   onCourseChange: (course: Course) => void;
   /** 이 학생 로드맵에서 블록 제거 */
   onHide: (courseId: string) => void;
+  /** 로드맵에 넣지 않은(접어 둔) 과정 — 아래 '숨긴 과목'에서 클릭하면 추가 */
+  hiddenCourses: Course[];
+  onShow: (courseId: string) => void;
 }
 
 interface Bar {
@@ -174,7 +177,10 @@ export default function RemainingRoadmap({
   onCourseRange,
   onCourseChange,
   onHide,
+  hiddenCourses,
+  onShow,
 }: Props) {
+  const [hcOpen, setHcOpen] = useState(false); // '숨긴 과목' 펼침
   const [move, setMove] = useState<MoveState | null>(null);
   const moveRef = useRef<MoveState | null>(null);
   moveRef.current = move;
@@ -239,6 +245,22 @@ export default function RemainingRoadmap({
   });
   const mathLane = stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts).map(toGyoBar));
   const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
+
+  // 숨긴 과목: 이 학생에게 의미 있는 것만(이미 지난 교과 진도·다른 학교 과정 제외), 교과 순서 → 특화 순
+  const hiddenList = hiddenCourses
+    .map((c) => ({ c, seq: gyoSeqIndex(c) }))
+    .filter(({ c, seq }) => {
+      if (c.track === '공통') return seq === -1 || seq >= (c.subject === '수학' ? mathCurrent : sciCurrent);
+      return c.track === track;
+    })
+    .sort((a, b) => {
+      const ga = a.c.track === '공통' ? 0 : 1;
+      const gb = b.c.track === '공통' ? 0 : 1;
+      if (ga !== gb) return ga - gb;
+      if (a.c.subject !== b.c.subject) return a.c.subject.localeCompare(b.c.subject);
+      return (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name);
+    })
+    .map(({ c }) => c);
 
   // 레이아웃 Y
   let y = HEADER_H + PAD;
@@ -622,6 +644,36 @@ export default function RemainingRoadmap({
           );
         })()}
       </svg>
+
+      {/* 과학 교과 아래: 접어 둔 과목(대수~기하, ✕로 뺀 블록) — 클릭하면 로드맵에 추가 */}
+      {hiddenList.length > 0 && (
+        <div className={`hidden-courses no-print${hcOpen ? ' open' : ''}`}>
+          <button type="button" className="hc-toggle" onClick={() => setHcOpen((o) => !o)} aria-expanded={hcOpen}>
+            <span className="arrow">{hcOpen ? '▾' : '▸'}</span>
+            숨긴 과목 <b>{hiddenList.length}</b>개
+            <small>클릭하면 로드맵에 추가됩니다</small>
+          </button>
+          {hcOpen && (
+            <div className="hc-list">
+              {hiddenList.map((c) => {
+                const col = courseColor(c);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="hc-chip"
+                    style={{ background: col.fill, color: col.text }}
+                    title={`${c.name} 로드맵에 추가`}
+                    onClick={() => onShow(c.id)}
+                  >
+                    + {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {popupCourse && (
         <CourseEditPopup

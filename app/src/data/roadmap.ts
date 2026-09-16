@@ -195,6 +195,16 @@ export const GYO_BLOCK_MONTHS = 6; // 개별 교과 블록 길이(개월)
 
 export const GYO_PACE = { mathMonthsPerItem: 3, sciMonthsPerItem: 3 }; // 교과 진도 투영 속도(월/항목)
 
+/** 수학 교과는 기본적으로 이 과목까지만 로드맵에 보이고, 그 다음(대수~기하)은 '숨긴 과목'에 접어 둔다 */
+export const MATH_GYO_DEFAULT_LAST = '공통수학2';
+/** 처음 상담 화면에서 로드맵에 넣지 않고 접어 둘 과정 id 목록 */
+export function defaultHiddenIds(courses: Course[]): string[] {
+  const last = MATH_GYO_SEQUENCE.indexOf(MATH_GYO_DEFAULT_LAST);
+  return courses
+    .filter((c) => c.track === '공통' && c.subject === '수학' && MATH_GYO_SEQUENCE.indexOf(c.name) > last)
+    .map((c) => c.id);
+}
+
 /** 과학 교과 전체 순서(중등 학기 + 고등) */
 export const SCI_GYO_ALL = [...SCI_GYO_MID_SEQUENCE, ...SCI_GYO_ADVANCED];
 

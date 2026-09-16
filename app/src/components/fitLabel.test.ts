@@ -1,7 +1,16 @@
 // src/components/fitLabel.test.ts — 블록 안 과목 이름 맞추기(한 줄 → 두 줄 → 줄임말)
 import { describe, expect, it } from 'vitest';
 import { fitLabel } from './RemainingRoadmap';
-import { mergePlans } from '../lib/store';
+import { defaultStore, mergePlans } from '../lib/store';
+import { defaultHiddenIds } from '../data/roadmap';
+
+describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 표시', () => {
+  it('대수·미적분Ⅰ·확률과 통계·미적분Ⅱ·기하가 접힌다', () => {
+    const cs = defaultStore().courses;
+    const names = defaultHiddenIds(cs).map((id) => cs.find((c) => c.id === id)!.name);
+    expect(names).toEqual(['대수', '미적분Ⅰ', '확률과 통계', '미적분Ⅱ', '기하']);
+  });
+});
 
 const COL_W = 30; // 1달 폭
 const BAR_H = 34;
