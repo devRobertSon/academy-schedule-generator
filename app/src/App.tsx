@@ -91,8 +91,9 @@ export default function App() {
   const exportRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const mathProgress = MATH_GYO_SEQUENCE[info.mathIdx];
-  const sciProgress = SCI_GYO_SEQUENCE[info.sciIdx];
+  // 인쇄 요약용 진도 표기: -1(아직 안 함)이면 '없음'
+  const mathProgress = info.mathIdx < 0 ? '없음' : MATH_GYO_SEQUENCE[info.mathIdx];
+  const sciProgress = info.sciIdx < 0 ? '없음' : SCI_GYO_SEQUENCE[info.sciIdx];
   const today = new Date().toLocaleDateString('ko-KR');
   const remaining = remainingCourses(visibleCourses, track, atIdx, shifts);
   const firstExam = journey.milestones[0];

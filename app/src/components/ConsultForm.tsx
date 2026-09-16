@@ -14,6 +14,9 @@ interface Props {
 }
 
 const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
+/** 진도 인덱스 -1 = 아직 아무것도 하지 않음(중학교 과학을 전혀 안 한 학생 등) */
+export const NONE_IDX = -1;
+export const NONE_LABEL = '없음 (아직 안 함)';
 
 /** 상담 정보 — 상단 칩 스트립(각 칩이 곧 입력) */
 export default function ConsultForm({ value, onChange }: Props) {
@@ -56,6 +59,7 @@ export default function ConsultForm({ value, onChange }: Props) {
       <label className="chip">
         <span className="k">수학 완료</span>
         <select id="mathIdx" value={value.mathIdx} onChange={(e) => set({ mathIdx: Number(e.target.value) })}>
+          <option value={-1}>{NONE_LABEL}</option>
           {MATH_GYO_SEQUENCE.map((name, i) => (
             <option key={name} value={i}>
               {name}
@@ -67,6 +71,7 @@ export default function ConsultForm({ value, onChange }: Props) {
       <label className="chip">
         <span className="k">과학 완료</span>
         <select id="sciIdx" value={value.sciIdx} onChange={(e) => set({ sciIdx: Number(e.target.value) })}>
+          <option value={-1}>{NONE_LABEL}</option>
           {SCI_GYO_SEQUENCE.map((name, i) => (
             <option key={name} value={i}>
               {name}
