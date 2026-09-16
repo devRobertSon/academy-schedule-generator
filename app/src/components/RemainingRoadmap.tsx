@@ -13,9 +13,14 @@ import {
   gradeOfIndex,
   monthOfIndex,
   monthToSeason,
+  posToEndYM,
+  posToStartYM,
   startPos,
   ymLabel,
 } from '../data/roadmap';
+
+/** 선택 블록의 시작/종료월 표기: '중2 3월', '중3 10월 중순' */
+const fmtYM = (ym: { grade: string; month: number; half?: boolean }) => `${ym.grade} ${ym.month}월${ym.half ? ' 중순' : ''}`;
 import { gyoLaneLayout, gyoSeqIndex, remainingCourses } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
 import CourseEditPopup from './CourseEditPopup';
@@ -190,6 +195,8 @@ export default function RemainingRoadmap({
   const movedRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selected;
   const [popupId, setPopupId] = useState<string | null>(null);
   const [hoverMs, setHoverMs] = useState<number | null>(null); // 마우스를 올린 시험 ◆
   const [hoverBar, setHoverBar] = useState<string | null>(null); // 마우스를 올린(줄임말) 블록 → 전체 이름 툴팁
@@ -296,9 +303,13 @@ export default function RemainingRoadmap({
       const d = moveRef.current;
       setMove(null);
       if (d && !movedRef.current) {
-        // 클릭(이동 없음) → 선택 + 팝업
-        setSelected(d.id);
-        setPopupId(d.id);
+        // 클릭(이동 없음): 처음 클릭 → 선택(시작·종료월 표시), 선택된 블록을 한 번 더 클릭 → 편집 팝업
+        if (selectedRef.current === d.id) {
+          setPopupId(d.id);
+        } else {
+          setSelected(d.id);
+          setPopupId(null);
+        }
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -413,6 +424,31 @@ export default function RemainingRoadmap({
             {ln}
           </text>
         ))}
+        {/* 선택 시 시작월(왼쪽 위) · 종료월(오른쪽 아래) 표시 */}
+        {sel &&
+          (() => {
+            const sLabel = fmtYM(posToStartYM(b.startIdx));
+            const eLabel = fmtYM(posToEndYM(b.endIdx + 0.5));
+            const fs = 10;
+            const pad = 5;
+            const sw = estTextWidth(sLabel, fs) + pad * 2;
+            const ew = estTextWidth(eLabel, fs) + pad * 2;
+            const ph = 16;
+            const sx = Math.max(LABEL_W, x - 2);
+            const ex = Math.min(chartW - ew, x + w + 2 - ew);
+            return (
+              <g>
+                <rect x={sx} y={yTop - ph + 3} width={sw} height={ph} rx={4} fill={ACCENT} />
+                <text x={sx + sw / 2} y={yTop - ph + 3 + ph / 2 + 3.5} fontSize={fs} fontWeight={700} fill="#fff" textAnchor="middle">
+                  {sLabel}
+                </text>
+                <rect x={ex} y={yTop + BAR_H - 3} width={ew} height={ph} rx={4} fill={ACCENT} />
+                <text x={ex + ew / 2} y={yTop + BAR_H - 3 + ph / 2 + 3.5} fontSize={fs} fontWeight={700} fill="#fff" textAnchor="middle">
+                  {eLabel}
+                </text>
+              </g>
+            );
+          })()}
         {/* 선택 시 오른쪽 위 ✕ (이 학생 로드맵에서 제거) */}
         {sel && (
           <g

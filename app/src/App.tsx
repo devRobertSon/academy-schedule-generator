@@ -301,7 +301,7 @@ export default function App() {
           </div>
 
           <footer className="app-footer no-print">
-            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 과정·단계·시험은 [관리] 탭 또는 블록 클릭 팝업에서 수정</small>
+            <small>목표 학교 1곳 기준 · 남은 과목만 표시 · 블록 클릭 = 선택(시작·종료월 표시), 선택된 블록 다시 클릭 = 편집 팝업 · 과정·단계·시험은 [관리] 탭에서도 수정</small>
           </footer>
         </>
       )}
