@@ -117,35 +117,35 @@ export interface Course {
 export const TRACK_COURSES: Course[] = [
   // 영재학교 · 수학
   { id: 'yj_chang1', name: '창의수학 1단계', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중1', month: 6 }, end: { grade: '중1', month: 2 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }], teacher: '김민수' },
+    start: { grade: '중1', month: 6 }, end: { grade: '중1', month: 2 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }] },
   // KMO는 대수·기하·정수·조합 4과목으로 구성
   { id: 'yj_kmo_algebra', name: 'KMO 대수', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '화', start: '18:00', end: '20:00' }], teacher: '이정훈' },
+    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '화', start: '18:00', end: '20:00' }] },
   { id: 'yj_kmo_geometry', name: 'KMO 기하', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '화', start: '20:00', end: '22:00' }], teacher: '이정훈' },
+    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '화', start: '20:00', end: '22:00' }] },
   { id: 'yj_kmo_number', name: 'KMO 정수', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '10:00', end: '12:00' }], teacher: '김민수' },
+    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '10:00', end: '12:00' }] },
   { id: 'yj_kmo_combi', name: 'KMO 조합', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '13:00', end: '15:00' }], teacher: '김민수' },
+    start: { grade: '중2', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '13:00', end: '15:00' }] },
   { id: 'yj_final_math', name: '영재학교 파이널 수학', track: '영재학교', subject: '수학', type: '영재학교입시',
-    start: { grade: '중2', month: 12 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '목', start: '18:00', end: '21:00' }], teacher: '이정훈' },
+    start: { grade: '중2', month: 12 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '목', start: '18:00', end: '21:00' }] },
   { id: 'yj_hs_math_review', name: '고등수학 총정리', track: '영재학교', subject: '수학', type: '고등선행',
-    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '토', start: '10:00', end: '13:00' }], teacher: '김민수' },
+    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '토', start: '10:00', end: '13:00' }] },
   // 영재학교 · 과학
   // 천체·유전 특강은 각 2달로 분리
   { id: 'yj_astro', name: '천체 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 8 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }], teacher: '정우성' },
+    start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 8 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
   { id: 'yj_genetics', name: '유전 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 10 }, end: { grade: '중2', month: 11 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }], teacher: '정우성' },
+    start: { grade: '중2', month: 10 }, end: { grade: '중2', month: 11 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
   { id: 'yj_mid_adv_sci', name: '중등심화과학', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 12 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '금', start: '18:00', end: '20:00' }], teacher: '한지민' },
+    start: { grade: '중2', month: 12 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '금', start: '18:00', end: '20:00' }] },
   { id: 'yj_final_sci', name: '영재학교 파이널 과학', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중3', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '14:00', end: '17:00' }], teacher: '정우성' },
+    start: { grade: '중3', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '14:00', end: '17:00' }] },
   { id: 'yj_phys_chem_review', name: '물리학/화학 총정리', track: '영재학교', subject: '과학', type: '고등선행',
-    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '일', start: '10:00', end: '13:00' }], teacher: '한지민' },
+    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '일', start: '10:00', end: '13:00' }] },
   // 영재학교 · 면접 (중3 7월, 특화 면접 레인)
   { id: 'yj_final_interview', name: '영재학교 파이널 면접', track: '영재학교', subject: '면접', type: '영재학교입시',
-    start: { grade: '중3', month: 7 }, end: { grade: '중3', month: 7 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }, { day: '목', start: '18:00', end: '20:00' }], teacher: '이정훈' },
+    start: { grade: '중3', month: 7 }, end: { grade: '중3', month: 7 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }, { day: '목', start: '18:00', end: '20:00' }] },
   // 과학고 · 수학
   { id: 'sg_chang1', name: '창의수학 1단계', track: '과학고', subject: '수학', type: '과학고입시',
     start: { grade: '중2', month: 6 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '월', start: '17:00', end: '19:00' }] },
@@ -239,7 +239,7 @@ function makeGyoCourses(
       start: ymOf(start),
       end: ymOf(end),
       schedule: sessions.map((s) => ({ ...s })),
-      teacher,
+      teacher: teacher || undefined,
     };
   });
 }
@@ -252,7 +252,7 @@ export const GYO_COURSES: Course[] = [
     MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS)),
     MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? '중등선행' : '고등선행')),
     [{ day: '수', start: '16:00', end: '18:00' }, { day: '토', start: '14:00', end: '16:00' }],
-    '박서연'
+    ''
   ),
   ...makeGyoCourses(
     'gyo_sci',
@@ -261,7 +261,7 @@ export const GYO_COURSES: Course[] = [
     SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? GYO_PACE.sciMonthsPerItem : GYO_BLOCK_MONTHS)),
     SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? '중등선행' : '고등선행')),
     [{ day: '금', start: '16:00', end: '18:00' }],
-    '한지민'
+    ''
   ),
 ];
 
