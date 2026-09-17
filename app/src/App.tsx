@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import ConsultForm, { ConsultInfo } from './components/ConsultForm';
 import RemainingRoadmap from './components/RemainingRoadmap';
 import MonthlyTimetable from './components/MonthlyTimetable';
@@ -23,10 +23,13 @@ import { StoreData, loadStore, mergePlans, saveStore } from './lib/store';
 
 type Page = 'consult' | 'admin';
 
+/** 상담 월 = 오늘의 실제 월(미래로 바꾸지 않음) */
+const THIS_MONTH = new Date().getMonth() + 1;
+
 const DEFAULT_CONSULT: ConsultInfo = {
   studentName: '',
   grade: '중1',
-  month: 6,
+  month: THIS_MONTH,
   mathIdx: MATH_GYO_SEQUENCE.indexOf('중3-2학기'),
   sciIdx: SCI_GYO_SEQUENCE.indexOf('중2-2학기'),
 };
@@ -42,7 +45,7 @@ interface SavedFile {
     shifts: Record<string, number>;
     slotOverrides: Record<string, TimeSlot>;
     hidden: string[];
-    viewIdx: number;
+    viewIdx?: number; // (구버전 파일 호환용, 지금은 쓰지 않음)
   };
 }
 
@@ -76,11 +79,6 @@ export default function App() {
     () => ({ mathCurrent: info.mathIdx + 1, sciCurrent: info.sciIdx + 1 }),
     [info.mathIdx, info.sciIdx]
   );
-  const [viewIdx, setViewIdx] = useState<number>(atIdx);
-  useEffect(() => {
-    setViewIdx((v) => Math.min(59, Math.max(atIdx, v)));
-  }, [atIdx]);
-
   const visibleCourses = useMemo(() => store.courses.filter((c) => !hidden.includes(c.id)), [store.courses, hidden]);
   const plan = store.plans[track];
   const journey = useMemo(
@@ -104,7 +102,7 @@ export default function App() {
       version: 1,
       courses: store.courses,
       plans: store.plans,
-      consult: { info, track, shifts, slotOverrides, hidden, viewIdx },
+      consult: { info, track, shifts, slotOverrides, hidden },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -122,12 +120,11 @@ export default function App() {
       setStore({ courses: parsed.courses, plans: mergePlans(parsed.plans) });
       const c = parsed.consult;
       if (c) {
-        setInfo(c.info);
+        setInfo({ ...c.info, month: THIS_MONTH }); // 상담 월은 항상 오늘 기준
         setTrack(c.track);
         setShifts(c.shifts ?? {});
         setSlotOverrides(c.slotOverrides ?? {});
         setHidden(c.hidden ?? []);
-        setViewIdx(c.viewIdx ?? nowIndex(c.info.grade, c.info.month));
       }
       alert('불러왔습니다.');
     } catch (e) {
@@ -292,8 +289,6 @@ export default function App() {
                 progress={progress}
                 track={track}
                 atIdx={atIdx}
-                viewIdx={viewIdx}
-                onViewIdxChange={setViewIdx}
                 shifts={shifts}
                 slotOverrides={slotOverrides}
                 onSlotOverrideChange={(key, slot) => setSlotOverrides((s) => ({ ...s, [key]: slot }))}

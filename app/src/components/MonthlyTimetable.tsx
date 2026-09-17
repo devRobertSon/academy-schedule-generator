@@ -27,9 +27,8 @@ const colorOf = (b: TimetableBlock) =>
 interface Props {
   courses: Course[];
   track: Track;
+  /** 상담 월(= 오늘) 인덱스 — 시간표는 이 달 한 장만 만든다 */
   atIdx: number;
-  viewIdx: number;
-  onViewIdxChange: (idx: number) => void;
   shifts: Record<string, number>;
   slotOverrides: Record<string, TimeSlot>;
   onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
@@ -123,8 +122,6 @@ export default function MonthlyTimetable({
   courses,
   track,
   atIdx,
-  viewIdx,
-  onViewIdxChange,
   shifts,
   slotOverrides,
   onSlotOverrideChange,
@@ -132,6 +129,8 @@ export default function MonthlyTimetable({
 }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  // 이번 달(상담 월) 한 장만 — 미래 월 시간표는 만들지 않음
+  const viewIdx = atIdx;
   const tt = useMemo(
     () => buildMonthlyTimetable(courses, track, viewIdx, atIdx, shifts, slotOverrides, progress),
     [courses, track, viewIdx, atIdx, shifts, slotOverrides, progress]
@@ -176,13 +175,7 @@ export default function MonthlyTimetable({
     <div className="tt-layout">
       <div className="tt-main">
         <div className="month-nav">
-          <button onClick={() => onViewIdxChange(Math.max(atIdx, viewIdx - 1))} disabled={viewIdx <= atIdx}>
-            ◀ 이전 달
-          </button>
-          <span className="month-label">{label} 시간표</span>
-          <button onClick={() => onViewIdxChange(Math.min(59, viewIdx + 1))} disabled={viewIdx >= 59}>
-            다음 달 ▶
-          </button>
+          <span className="month-label">이번 달 시간표 · {label}</span>
         </div>
 
         <div className="tt-toolbar no-print">
