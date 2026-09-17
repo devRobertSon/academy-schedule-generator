@@ -13,7 +13,6 @@ interface Props {
   onChange: (next: ConsultInfo) => void;
 }
 
-const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
 /** 진도 인덱스 -1 = 아직 아무것도 하지 않음(중학교 과학을 전혀 안 한 학생 등) */
 export const NONE_IDX = -1;
 export const NONE_LABEL = '없음 (아직 안 함)';
@@ -45,16 +44,11 @@ export default function ConsultForm({ value, onChange }: Props) {
         </select>
       </label>
 
-      <label className="chip">
+      {/* 상담 월은 오늘 날짜로 고정(미래로 바꾸지 않음) */}
+      <span className="chip" title="상담 월은 오늘 기준">
         <span className="k">상담 월</span>
-        <select id="month" value={value.month} onChange={(e) => set({ month: Number(e.target.value) })}>
-          {MONTHS.map((m) => (
-            <option key={m} value={m}>
-              {m}월
-            </option>
-          ))}
-        </select>
-      </label>
+        <b>{value.month}월</b>
+      </span>
 
       <label className="chip">
         <span className="k">수학 완료</span>
