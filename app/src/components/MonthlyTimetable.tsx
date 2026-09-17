@@ -95,7 +95,6 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
       <div style={{ fontSize: 10 }}>
         {block.slot.start}~{block.slot.end}
       </div>
-      {block.teacher && <div style={{ fontSize: 10, opacity: 0.85 }}>{block.teacher} 쌤</div>}
     </div>
   );
 }
@@ -265,7 +264,6 @@ export default function MonthlyTimetable({
                   <span className="dot" style={{ background: colorOf(b).fill }} />
                   <span>
                     <b>{b.slot.day}</b> {b.slot.start}~{b.slot.end} · {b.label}
-                    {b.teacher ? ` · ${b.teacher} 쌤` : ''}
                   </span>
                 </li>
               ))}
