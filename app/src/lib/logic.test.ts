@@ -142,6 +142,19 @@ describe('교과 블록 배치(gyoLaneLayout) — 중2 9월', () => {
     const lane = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, { gyo_math_6: -100 });
     expect(lane.find((e) => e.course.name === '공통수학1')!.startIdx).toBe(42);
   });
+  it('수학 레인(교과/기본심화/심화)은 각각 따로 오늘부터 일렬 배치되고, 합치면 전부 나온다', () => {
+    const adv: Course = { ...byId('gyo_math_6'), id: 'adv_1', name: '공통수학1 심화', lane: '심화' };
+    const cs = [...courses, adv];
+    const gyo = gyoLaneLayout(cs, '수학', PROGRESS.mathCurrent, atIdx, {}, '교과');
+    const deep = gyoLaneLayout(cs, '수학', PROGRESS.mathCurrent, atIdx, {}, '심화');
+    const basic = gyoLaneLayout(cs, '수학', PROGRESS.mathCurrent, atIdx, {}, '기본심화');
+    expect(gyo.map((e) => e.course.id)).not.toContain('adv_1');
+    expect(deep.map((e) => e.course.id)).toEqual(['adv_1']);
+    expect(deep[0].startIdx).toBe(42); // 자기 레인에서 오늘부터
+    expect(basic).toEqual([]);
+    const all = gyoLaneLayout(cs, '수학', PROGRESS.mathCurrent, atIdx, {});
+    expect(all.length).toBe(gyo.length + deep.length + basic.length);
+  });
   it('과학을 아직 안 한 학생(완료 = 없음, current 0)은 중1-1학기부터 오늘에서 시작', () => {
     const lane = gyoLaneLayout(courses, '과학', 0, atIdx, {});
     expect(lane[0].course.name).toBe('중1-1학기');
