@@ -5,6 +5,8 @@ import {
   CourseType,
   Grade,
   GRADES,
+  MATH_LANES,
+  MathLane,
   Milestone,
   Phase,
   Subject,
@@ -195,6 +197,20 @@ export default function AdminPage({ store, onChange }: Props) {
                         </option>
                       ))}
                     </select>
+                    {/* 공통 수학은 로드맵 레인(교과/기본심화/심화) 선택 */}
+                    {c.track === '공통' && c.subject === '수학' && (
+                      <select
+                        value={c.lane ?? '교과'}
+                        title="로드맵 레인"
+                        onChange={(e) => updateCourse(c.id, { lane: e.target.value as MathLane })}
+                      >
+                        {MATH_LANES.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td>
                     <select value={c.type} onChange={(e) => updateCourse(c.id, { type: e.target.value as CourseType })}>

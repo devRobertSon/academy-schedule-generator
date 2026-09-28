@@ -4,6 +4,8 @@ import {
   Course,
   Grade,
   MATH_GYO_SEQUENCE,
+  MATH_LANES,
+  MathLane,
   Phase,
   SCI_GYO_SEQUENCE,
   Subject,
@@ -12,6 +14,7 @@ import {
   TrackPlan,
   endPos,
   gmIndex,
+  mathLaneOf,
   startPos,
 } from '../data/roadmap';
 
@@ -171,10 +174,15 @@ export function gyoLaneLayout(
   subject: Subject,
   currentIdx: number,
   atIdx: number,
-  shifts: Record<string, number>
+  shifts: Record<string, number>,
+  /** 수학은 레인(교과/기본심화/심화)별로 따로 일렬 배치. 생략하면 세 레인을 모두 합쳐 돌려준다 */
+  lane?: MathLane
 ): LaneEntry[] {
+  if (subject === '수학' && lane === undefined) {
+    return MATH_LANES.flatMap((l) => gyoLaneLayout(courses, subject, currentIdx, atIdx, shifts, l));
+  }
   const list = courses
-    .filter((c) => c.track === '공통' && c.subject === subject)
+    .filter((c) => c.track === '공통' && c.subject === subject && (subject !== '수학' || mathLaneOf(c) === lane))
     .map((c) => ({ c, seq: gyoSeqIndex(c) }))
     .filter((x) => x.seq === -1 || x.seq >= currentIdx)
     .sort((a, b) => (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name));

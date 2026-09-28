@@ -101,6 +101,11 @@ export interface YM {
   half?: boolean;
 }
 
+/** 교과 수학 레인: 로드맵 교과 구역의 수학 3줄(교과 / 기본심화 / 심화) */
+export type MathLane = '교과' | '기본심화' | '심화';
+export const MATH_LANES: MathLane[] = ['교과', '기본심화', '심화'];
+export const MATH_LANE_LABELS: Record<MathLane, string> = { 교과: '수학 교과', 기본심화: '수학 기본심화', 심화: '수학 심화' };
+
 export interface Course {
   id: string;
   name: string;
@@ -111,7 +116,10 @@ export interface Course {
   end: YM; // 포함 구간(월)
   schedule: TimeSlot[]; // 수업 요일/시각
   teacher?: string; // 담당 선생님
+  /** 공통(교과) 수학 과정이 놓이는 레인. 없으면 '교과' */
+  lane?: MathLane;
 }
+export const mathLaneOf = (c: { lane?: MathLane }): MathLane => c.lane ?? '교과';
 
 /** 트랙별 특화/면접/통합과학 과정 (월 단위, 일정 고정) */
 export const TRACK_COURSES: Course[] = [

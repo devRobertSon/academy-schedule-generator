@@ -3,6 +3,8 @@ import {
   COLORS,
   Course,
   GRADES,
+  MATH_LANES,
+  MATH_LANE_LABELS,
   Milestone,
   Subject,
   Track,
@@ -250,10 +252,12 @@ export default function RemainingRoadmap({
     fill: courseColor(e.course).fill,
     text: courseColor(e.course).text,
   });
-  // 수학 교과 레인은 겹치지 않아도 항상 3줄 높이(블록을 겹쳐 놓을 자리 확보)
-  const MATH_LANE_MIN_LEVELS = 3;
-  const mathLaneRaw = stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts).map(toGyoBar));
-  const mathLane = { ...mathLaneRaw, levels: Math.max(MATH_LANE_MIN_LEVELS, mathLaneRaw.levels) };
+  // 수학은 세 레인(수학 교과 / 수학 기본심화 / 수학 심화) — 비어 있어도 줄은 항상 보인다
+  const mathLanes = MATH_LANES.map((lane) => ({
+    lane,
+    label: MATH_LANE_LABELS[lane],
+    stack: stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts, lane).map(toGyoBar)),
+  }));
   const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
 
   // 숨긴 과목: 이 학생에게 의미 있는 것만(이미 지난 교과 진도·다른 학교 과정 제외), 교과 순서 → 특화 순
@@ -281,12 +285,17 @@ export default function RemainingRoadmap({
   });
   if (specLayout.length === 0) y += ROW_H;
   const gyoSectionTop = y + 12;
-  const mathLaneTop = gyoSectionTop + 30;
-  const sciLaneTop = mathLaneTop + mathLane.levels * ROW_H + 8;
+  let gy = gyoSectionTop + 30;
+  const mathLayout = mathLanes.map((l) => {
+    const top = gy;
+    gy += l.stack.levels * ROW_H + 8;
+    return { ...l, top };
+  });
+  const sciLaneTop = gy;
   const chartH = sciLaneTop + sciLane.levels * ROW_H + PAD + 8;
   const allPlaced = [
     ...specLayout.flatMap((l) => l.lane.placed.map((b) => ({ b, top: l.top }))),
-    ...mathLane.placed.map((b) => ({ b, top: mathLaneTop })),
+    ...mathLayout.flatMap((l) => l.stack.placed.map((b) => ({ b, top: l.top }))),
     ...sciLane.placed.map((b) => ({ b, top: sciLaneTop })),
   ];
 
@@ -598,12 +607,18 @@ export default function RemainingRoadmap({
         <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill={INK}>
           교과 과정 · 학생 진도 기준으로 오늘부터 배치 (완료한 블록은 표시하지 않음)
         </text>
-        {rowLabel('수학 교과', mathLaneTop)}
-        {mathLane.placed.map((b) => renderBar(b, mathLaneTop))}
+        {mathLayout.map((l) => (
+          <g key={`ml-${l.lane}`}>
+            {rowLabel(l.label, l.top)}
+            {/* 빈 레인도 줄이 보이도록 얇은 밑선 */}
+            <line x1={LABEL_W} y1={l.top + BAR_H + 3} x2={chartW} y2={l.top + BAR_H + 3} stroke={LINE} strokeWidth={0.5} />
+            {l.stack.placed.map((b) => renderBar(b, l.top))}
+          </g>
+        ))}
         {rowLabel('과학 교과', sciLaneTop)}
         {sciLane.placed.map((b) => renderBar(b, sciLaneTop))}
         {/* 글자 레이어(블록보다 위) */}
-        {mathLane.placed.map((b) => renderLabel(b, mathLaneTop))}
+        {mathLayout.flatMap((l) => l.stack.placed.map((b) => renderLabel(b, l.top)))}
         {sciLane.placed.map((b) => renderLabel(b, sciLaneTop))}
 
         {/* 현재 월 세로선 */}
