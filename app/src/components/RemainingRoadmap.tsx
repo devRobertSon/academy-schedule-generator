@@ -250,7 +250,10 @@ export default function RemainingRoadmap({
     fill: courseColor(e.course).fill,
     text: courseColor(e.course).text,
   });
-  const mathLane = stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts).map(toGyoBar));
+  // 수학 교과 레인은 겹치지 않아도 항상 3줄 높이(블록을 겹쳐 놓을 자리 확보)
+  const MATH_LANE_MIN_LEVELS = 3;
+  const mathLaneRaw = stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts).map(toGyoBar));
+  const mathLane = { ...mathLaneRaw, levels: Math.max(MATH_LANE_MIN_LEVELS, mathLaneRaw.levels) };
   const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
 
   // 숨긴 과목: 이 학생에게 의미 있는 것만(이미 지난 교과 진도·다른 학교 과정 제외), 교과 순서 → 특화 순
