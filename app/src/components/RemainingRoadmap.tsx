@@ -395,7 +395,7 @@ export default function RemainingRoadmap({
     const active = move?.id === b.id || resize?.id === b.id;
     const label = fitLabel(b.course.name, w, BAR_H);
     return (
-      <g key={b.id}>
+      <g key={b.id} data-bar="1">
         <rect
           x={x}
           y={yTop}
@@ -464,6 +464,7 @@ export default function RemainingRoadmap({
         {/* 선택 시 오른쪽 위 ✕ (이 학생 로드맵에서 제거) */}
         {sel && (
           <g
+            data-bar-ui="1"
             style={{ cursor: 'pointer', pointerEvents: 'auto' }}
             onPointerDown={(ev) => {
               ev.preventDefault();
@@ -503,6 +504,14 @@ export default function RemainingRoadmap({
         width="100%"
         viewBox={`0 0 ${chartW} ${chartH}`}
         style={{ minWidth: chartW, height: 'auto', display: 'block' }}
+        onPointerDown={(ev) => {
+          // 블록(✕ 포함) 밖의 빈 곳을 클릭하면 선택 해제
+          const el = ev.target as Element;
+          if (!el.closest('[data-bar]') && !el.closest('[data-bar-ui]')) {
+            setSelected(null);
+            setPopupId(null);
+          }
+        }}
         role="img"
         aria-label={`${track} 남은 과정 로드맵`}
       >
@@ -605,7 +614,7 @@ export default function RemainingRoadmap({
         {/* 교과 섹션 */}
         <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke={LINE} strokeWidth={1} />
         <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill={INK}>
-          교과 과정 · 학생 진도 기준으로 오늘부터 배치 (완료한 블록은 표시하지 않음)
+          교과 과정 · 학생 진도 기준으로 오늘부터 배치
         </text>
         {mathLayout.map((l) => (
           <g key={`ml-${l.lane}`}>
