@@ -462,11 +462,39 @@ select {
 }
 
 /* ── 시간표 + 수업 목록 2단 ───────────────── */
+/* 시간표 + 수업 목록: 표는 고정 폭, 넓어지면 바깥 여백이 늘고 둘 사이 간격은 그대로 */
 .tt-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   gap: 14px;
-  align-items: start;
+}
+.tt-main {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.tt-side {
+  flex: 0 0 300px;
+}
+.tt-scroll {
+  width: fit-content;
+  max-width: 100%;
+}
+/* 왼쪽 시간 열(sticky) */
+.tt-timecol {
+  z-index: 20;
+  background: #fff;
+  border-right: 1px solid #d9e3f0;
+  box-sizing: border-box;
+}
+/* 로드맵: 왼쪽 과목 종류 열(sticky 오버레이) + 본체 */
+.roadmap-inner {
+  display: flex;
+  align-items: flex-start;
+}
+.roadmap-left {
+  display: block;
 }
 .tt-side {
   display: flex;
@@ -800,7 +828,11 @@ select {
 /* ── 반응형 ───────────────────────────────── */
 @media (max-width: 900px) {
   .tt-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tt-side {
+    flex-basis: auto;
   }
 }
 @media (max-width: 640px) {
@@ -859,8 +891,12 @@ select {
     width: 100% !important;
     height: auto !important;
   }
-  .tt-layout {
-    grid-template-columns: 1fr 260px;
+  .tt-side {
+    flex-basis: 260px;
+  }
+  .tt-timecol,
+  .roadmap-left {
+    position: static !important;
   }
   @page {
     size: A4 landscape;

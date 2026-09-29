@@ -496,14 +496,52 @@ export default function RemainingRoadmap({
 
   const popupCourse = popupId ? courses.find((c) => c.id === popupId) : undefined;
 
+  // 왼쪽 라벨 열(과목 종류): 가로 스크롤 시에도 항상 보이도록 같은 내용을 sticky 오버레이 SVG에 한 번 더 그린다
+  const leftPct = (LABEL_W / chartW) * 100;
+  const leftColumn = (
+    <g>
+      <rect x={0} y={0} width={LABEL_W} height={chartH} fill="#fff" />
+      <text x={10} y={PHASE_H / 2 + 4} fontSize={10} fontWeight={700} fill={MUTED}>
+        단계
+      </text>
+      <text x={10} y={PHASE_H + MS_H / 2 + 4} fontSize={10} fontWeight={700} fill={MUTED}>
+        시험
+      </text>
+      <text x={10} y={AXIS_Y + GRADE_H / 2 + 5} fontSize={11} fontWeight={700} fill={BRAND}>
+        오늘 {gradeOfIndex(atIdx)} {monthOfIndex(atIdx)}월 →
+      </text>
+      {specLayout.map((l) => (
+        <g key={`lc-spec-${l.subject}`}>{rowLabel(`특화 ${l.subject}`, l.top)}</g>
+      ))}
+      <line x1={0} y1={gyoSectionTop} x2={LABEL_W} y2={gyoSectionTop} stroke={LINE} strokeWidth={1} />
+      <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill={INK}>
+        교과 과정
+      </text>
+      {mathLayout.map((l) => (
+        <g key={`lc-ml-${l.lane}`}>{rowLabel(l.label, l.top)}</g>
+      ))}
+      {rowLabel('과학 교과', sciLaneTop)}
+      <line x1={LABEL_W - 0.5} y1={0} x2={LABEL_W - 0.5} y2={chartH} stroke={LINE} strokeWidth={1} />
+    </g>
+  );
+
   return (
     <>
+      <div className="roadmap-inner" style={{ minWidth: chartW }}>
+      <svg
+        className="roadmap-left"
+        viewBox={`0 0 ${LABEL_W} ${chartH}`}
+        style={{ flex: `0 0 ${leftPct}%`, width: `${leftPct}%`, height: 'auto', position: 'sticky', left: 0, zIndex: 2, pointerEvents: 'none' }}
+        aria-hidden="true"
+      >
+        {leftColumn}
+      </svg>
       <svg
         ref={svgRef}
         className="roadmap-svg"
         width="100%"
         viewBox={`0 0 ${chartW} ${chartH}`}
-        style={{ minWidth: chartW, height: 'auto', display: 'block' }}
+        style={{ flex: '0 0 100%', width: '100%', marginLeft: `-${leftPct}%`, height: 'auto', display: 'block' }}
         onPointerDown={(ev) => {
           // 블록(✕ 포함) 밖의 빈 곳을 클릭하면 선택 해제
           const el = ev.target as Element;
@@ -614,7 +652,10 @@ export default function RemainingRoadmap({
         {/* 교과 섹션 */}
         <line x1={0} y1={gyoSectionTop} x2={chartW} y2={gyoSectionTop} stroke={LINE} strokeWidth={1} />
         <text x={8} y={gyoSectionTop + 15} fontSize={11} fontWeight={600} fill={INK}>
-          교과 과정 · 학생 진도 기준으로 오늘부터 배치
+          교과 과정
+        </text>
+        <text x={LABEL_W + 8} y={gyoSectionTop + 15} fontSize={11} fontWeight={500} fill={MUTED}>
+          학생 진도 기준으로 오늘부터 배치
         </text>
         {mathLayout.map((l) => (
           <g key={`ml-${l.lane}`}>
@@ -707,13 +748,14 @@ export default function RemainingRoadmap({
           );
         })()}
       </svg>
+      </div>
 
       {/* 과학 교과 아래: 접어 둔 과목(대수~기하, ✕로 뺀 블록) — 클릭하면 로드맵에 추가 */}
       {hiddenList.length > 0 && (
         <div className={`hidden-courses no-print${hcOpen ? ' open' : ''}`}>
           <button type="button" className="hc-toggle" onClick={() => setHcOpen((o) => !o)} aria-expanded={hcOpen}>
             <span className="arrow">{hcOpen ? '▾' : '▸'}</span>
-            고등 수학 <b>{hiddenList.length}</b>
+            추가 과목 <b>{hiddenList.length}</b>
             <small>클릭하면 로드맵에 추가됩니다</small>
           </button>
           {hcOpen && (
