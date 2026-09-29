@@ -59,7 +59,7 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
   const dayIdx = DAYS.indexOf(block.slot.day);
   const top = HEAD_H + minToSlot(toMin(block.slot.start)) * SLOT_H;
   const height = ((toMin(block.slot.end) - toMin(block.slot.start)) / SLOT_MIN) * SLOT_H;
-  const left = TIME_COL_W + dayIdx * DAY_W;
+  const left = dayIdx * DAY_W; // 요일 영역(.tt-days) 기준
   const c = colorOf(block);
   return (
     <div
@@ -105,7 +105,7 @@ function Cell({ dayIdx, slot }: { dayIdx: number; slot: number }) {
       ref={setNodeRef}
       style={{
         position: 'absolute',
-        left: TIME_COL_W + dayIdx * DAY_W,
+        left: dayIdx * DAY_W, // 요일 영역(.tt-days) 기준
         top: HEAD_H + slot * SLOT_H,
         width: DAY_W,
         height: SLOT_H,
@@ -199,33 +199,39 @@ export default function MonthlyTimetable({
 
         <div className="tt-scroll">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <div className="tt-grid" style={{ position: 'relative', width: gridW, height: gridH }}>
-              {DAYS.map((d, i) => (
-                <div
-                  key={d}
-                  className="tt-day-head"
-                  style={{ position: 'absolute', left: TIME_COL_W + i * DAY_W, top: 0, width: DAY_W, height: HEAD_H }}
-                >
-                  {d}
-                </div>
-              ))}
-              {Array.from({ length: SLOT_COUNT }).map((_, s) =>
-                s % 2 === 0 ? (
+            <div className="tt-grid" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', width: gridW, height: gridH }}>
+              {/* 왼쪽 시간 열: 가로 스크롤 시에도 항상 보이도록 sticky */}
+              <div className="tt-timecol" style={{ position: 'sticky', left: 0, flex: `0 0 ${TIME_COL_W}px`, width: TIME_COL_W, height: gridH }}>
+                {Array.from({ length: SLOT_COUNT }).map((_, s) =>
+                  s % 2 === 0 ? (
+                    <div
+                      key={`tl-${s}`}
+                      className="tt-time-label"
+                      style={{ position: 'absolute', left: 0, top: HEAD_H + s * SLOT_H - 1, width: TIME_COL_W, height: SLOT_H }}
+                    >
+                      {toHHMM(slotToMin(s))}
+                    </div>
+                  ) : null
+                )}
+              </div>
+              {/* 요일 영역: 헤더·칸·블록은 이 영역 기준 좌표 */}
+              <div className="tt-days" style={{ position: 'relative', width: DAYS.length * DAY_W, height: gridH }}>
+                {DAYS.map((d, i) => (
                   <div
-                    key={`tl-${s}`}
-                    className="tt-time-label"
-                    style={{ position: 'absolute', left: 0, top: HEAD_H + s * SLOT_H - 1, width: TIME_COL_W, height: SLOT_H }}
+                    key={d}
+                    className="tt-day-head"
+                    style={{ position: 'absolute', left: i * DAY_W, top: 0, width: DAY_W, height: HEAD_H }}
                   >
-                    {toHHMM(slotToMin(s))}
+                    {d}
                   </div>
-                ) : null
-              )}
-              {DAYS.map((_, dayIdx) =>
-                Array.from({ length: SLOT_COUNT }).map((_, s) => <Cell key={`c-${dayIdx}-${s}`} dayIdx={dayIdx} slot={s} />)
-              )}
-              {tt.blocks.map((b) => (
-                <Block key={b.key} block={b} conflict={conflictKeys.has(b.key)} />
-              ))}
+                ))}
+                {DAYS.map((_, dayIdx) =>
+                  Array.from({ length: SLOT_COUNT }).map((_, s) => <Cell key={`c-${dayIdx}-${s}`} dayIdx={dayIdx} slot={s} />)
+                )}
+                {tt.blocks.map((b) => (
+                  <Block key={b.key} block={b} conflict={conflictKeys.has(b.key)} />
+                ))}
+              </div>
             </div>
           </DndContext>
         </div>
