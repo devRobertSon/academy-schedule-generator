@@ -355,8 +355,9 @@ select {
   background: var(--navy);
   color: #fff;
 }
-.exam-bar {
-  margin-top: -4px;
+/* 시험 일정 줄: 목표 학교 줄과 사이를 띄움 (.hero .chip-bar { margin: 0 } 보다 우선) */
+.hero .chip-bar.exam-bar {
+  margin-top: 14px;
 }
 
 /* 로드맵 아래 '숨긴 과목' 서랍 */
