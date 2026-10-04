@@ -122,6 +122,9 @@ interface Props {
   /** 보이는 수학 레인 수(1 = 수학 교과만, 2 = +기본심화, 3 = +심화). + 버튼으로 늘림 */
   mathLaneCount: number;
   onMathLaneCountChange: (n: number) => void;
+  /** 시간표에서 세션을 따로 움직이기로 한 교과 수학 과정 id(팝업의 '세션 함께 움직이기' 스위치) */
+  unlinked: string[];
+  onUnlinkedChange: (courseId: string, unlinked: boolean) => void;
 }
 
 interface Bar {
@@ -192,6 +195,8 @@ export default function RemainingRoadmap({
   onShow,
   mathLaneCount,
   onMathLaneCountChange,
+  unlinked,
+  onUnlinkedChange,
 }: Props) {
   const [hcOpen, setHcOpen] = useState(false); // '추가 과목' 펼침
   // 추가 과목 칩을 로드맵으로 끌어다 넣기(포인터 기반)
@@ -953,6 +958,12 @@ export default function RemainingRoadmap({
             setPopupId(null);
             setSelected(null);
           }}
+          {...(popupCourse.track === '공통' && popupCourse.subject === '수학'
+            ? {
+                linked: !unlinked.includes(popupCourse.id),
+                onLinkedChange: (v: boolean) => onUnlinkedChange(popupCourse.id, !v),
+              }
+            : {})}
         />
       )}
     </>

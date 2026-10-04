@@ -456,6 +456,34 @@ select {
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
+/* 세션을 따로 움직이는(분리된) 교과 수학 블록 표시 */
+.tt-unlinked {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #7b1e1e;
+  border: 1px dashed rgba(123, 30, 30, 0.5);
+  line-height: 14px;
+}
+/* 팝업: 체크박스 한 줄 */
+.modal-check {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 8px;
+}
+.modal-check input {
+  margin-top: 3px;
+}
+.modal-check small {
+  display: block;
+  font-weight: 400;
+}
+
 /* 시간표 블록 선택 시 위/아래 시간 조절 손잡이 */
 .tt-resize {
   position: absolute;
