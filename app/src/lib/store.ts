@@ -7,7 +7,7 @@ export interface StoreData {
   plans: Record<Track, TrackPlan>;
 }
 
-const KEY = 'asg.store.v6'; // v6: 기본 데이터에서 담당 선생님 이름 제거 (v5: 파이널 과정 정리·특화 면접 추가)
+const KEY = 'asg.store.v7'; // v7: 수학 교과 3레인(교과/기본심화/심화) 벌 추가, 수학 1.5h×주2회·과학 2.5h×주1회 기본 시간 (v6: 선생님 이름 제거)
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };

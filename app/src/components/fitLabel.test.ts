@@ -4,11 +4,29 @@ import { fitLabel } from './RemainingRoadmap';
 import { defaultStore, mergePlans } from '../lib/store';
 import { defaultHiddenIds } from '../data/roadmap';
 
-describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 표시', () => {
-  it('대수·미적분Ⅰ·확률과 통계·미적분Ⅱ·기하가 접힌다', () => {
+describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 표시, 기본심화·심화 벌은 전부 접힘', () => {
+  it('교과 레인에서는 대수·미적분Ⅰ·확률과 통계·미적분Ⅱ·기하가 접힌다', () => {
     const cs = defaultStore().courses;
-    const names = defaultHiddenIds(cs).map((id) => cs.find((c) => c.id === id)!.name);
-    expect(names).toEqual(['대수', '미적분Ⅰ', '확률과 통계', '미적분Ⅱ', '기하']);
+    const hidden = defaultHiddenIds(cs).map((id) => cs.find((c) => c.id === id)!);
+    const gyoNames = hidden.filter((c) => (c.lane ?? '교과') === '교과').map((c) => c.name);
+    expect(gyoNames).toEqual(['대수', '미적분Ⅰ', '확률과 통계', '미적분Ⅱ', '기하']);
+  });
+  it('기본심화·심화 레인의 13과목은 모두 접혀 있다(+로 레인을 열고 끌어다 넣음)', () => {
+    const cs = defaultStore().courses;
+    const hidden = new Set(defaultHiddenIds(cs));
+    const basic = cs.filter((c) => c.lane === '기본심화');
+    const deep = cs.filter((c) => c.lane === '심화');
+    expect(basic.length).toBe(13);
+    expect(deep.length).toBe(13);
+    expect([...basic, ...deep].every((c) => hidden.has(c.id))).toBe(true);
+  });
+  it('기본 수업 시간: 수학 1시간 30분 × 주 2회, 과학 2시간 30분 × 주 1회(토)', () => {
+    const cs = defaultStore().courses;
+    const m = cs.find((c) => c.id === 'gyo_math_6')!;
+    expect(m.schedule.map((s) => s.day)).toEqual(['월', '수']);
+    expect(m.schedule[0]).toMatchObject({ start: '16:00', end: '17:30' });
+    const s = cs.find((c) => c.id === 'gyo_sci_6')!;
+    expect(s.schedule).toEqual([{ day: '토', start: '17:00', end: '19:30' }]);
   });
 });
 

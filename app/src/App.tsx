@@ -45,6 +45,8 @@ interface SavedFile {
     shifts: Record<string, number>;
     slotOverrides: Record<string, TimeSlot>;
     hidden: string[];
+    /** 보이는 수학 레인 수(1~3) */
+    mathLaneCount?: number;
     viewIdx?: number; // (구버전 파일 호환용, 지금은 쓰지 않음)
   };
 }
@@ -72,6 +74,8 @@ export default function App() {
   const [slotOverrides, setSlotOverrides] = useState<Record<string, TimeSlot>>({});
   // 처음엔 수학 교과 공통수학2 다음 과목(대수~기하)을 접어 둠 → 로드맵 아래 '숨긴 과목'에서 클릭해 추가
   const [hidden, setHidden] = useState<string[]>(() => defaultHiddenIds(store.courses));
+  // 로드맵 수학 레인: 처음엔 '수학 교과'만, + 버튼으로 기본심화 → 심화를 연다
+  const [mathLaneCount, setMathLaneCount] = useState(1);
   const [logoOk, setLogoOk] = useState(true);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
@@ -102,7 +106,7 @@ export default function App() {
       version: 1,
       courses: store.courses,
       plans: store.plans,
-      consult: { info, track, shifts, slotOverrides, hidden },
+      consult: { info, track, shifts, slotOverrides, hidden, mathLaneCount },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -125,6 +129,7 @@ export default function App() {
         setShifts(c.shifts ?? {});
         setSlotOverrides(c.slotOverrides ?? {});
         setHidden(c.hidden ?? []);
+        setMathLaneCount(c.mathLaneCount ?? 1);
       }
       alert('불러왔습니다.');
     } catch (e) {
@@ -274,6 +279,8 @@ export default function App() {
                   onHide={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
                   hiddenCourses={store.courses.filter((c) => hidden.includes(c.id))}
                   onShow={(id) => setHidden((h) => h.filter((x) => x !== id))}
+                  mathLaneCount={mathLaneCount}
+                  onMathLaneCountChange={setMathLaneCount}
                 />
               </div>
               <JourneySummary summary={journey} />
@@ -292,6 +299,18 @@ export default function App() {
                 shifts={shifts}
                 slotOverrides={slotOverrides}
                 onSlotOverrideChange={(key, slot) => setSlotOverrides((s) => ({ ...s, [key]: slot }))}
+                onSessionResize={(key, courseId, sessionIdx, slot) => {
+                  // 시간 늘리기/줄이기 → 과정의 수업 시간(관리 탭 데이터)에 반영
+                  updateCourses((cs) =>
+                    cs.map((c) =>
+                      c.id === courseId
+                        ? { ...c, schedule: c.schedule.map((s, i) => (i === sessionIdx ? { ...s, start: slot.start, end: slot.end } : s)) }
+                        : c
+                    )
+                  );
+                  // 이 학생이 요일/시간을 옮겨 둔 세션이면 그 값도 같이 맞춘다
+                  setSlotOverrides((s) => (s[key] ? { ...s, [key]: { ...s[key], start: slot.start, end: slot.end } } : s));
+                }}
               />
             </section>
           </div>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -15,14 +15,19 @@ import {
   TimeSlot,
   Track,
   Weekday,
+  courseColor,
   gradeOfIndex,
   monthOfIndex,
 } from '../data/roadmap';
 import { GyoProgress, TimetableBlock, buildMonthlyTimetable } from '../lib/logic';
 
-/** 블록 색: 교과(공통)는 과목별 교과 색, 그 외는 과목 색 */
+/** 블록 색: 교과 수학은 레인(교과/기본심화/심화)별 색, 교과 과학은 교과 과학 색, 그 외는 과목 색 */
 const colorOf = (b: TimetableBlock) =>
-  b.gyo === 'math' ? COLORS.교과수학 : b.gyo === 'sci' ? COLORS.교과과학 : COLORS[b.subject];
+  b.gyo === 'math'
+    ? courseColor({ track: '공통', subject: '수학', lane: b.lane })
+    : b.gyo === 'sci'
+      ? COLORS.교과과학
+      : COLORS[b.subject];
 
 interface Props {
   courses: Course[];
@@ -32,7 +37,20 @@ interface Props {
   shifts: Record<string, number>;
   slotOverrides: Record<string, TimeSlot>;
   onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
+  /** 블록을 선택한 뒤 위/아래 가장자리를 끌어 시간을 늘리고 줄임 → 과정의 수업 시간에 반영 */
+  onSessionResize: (sessionKey: string, courseId: string, sessionIdx: number, slot: TimeSlot) => void;
   progress: GyoProgress;
+}
+
+/** 시간 조절 중인 블록의 임시 시각 */
+interface ResizeState {
+  key: string;
+  edge: 'top' | 'bottom';
+  startY: number;
+  origStart: number; // 분
+  origEnd: number;
+  start: number;
+  end: number;
 }
 
 const DAYS: Weekday[] = ['월', '화', '수', '목', '금', '토', '일'];
@@ -54,11 +72,28 @@ const toHHMM = (min: number) =>
 const slotToMin = (slot: number) => START_HOUR * 60 + slot * SLOT_MIN;
 const minToSlot = (min: number) => Math.round((min - START_HOUR * 60) / SLOT_MIN);
 
-function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }) {
+function Block({
+  block,
+  conflict,
+  selected,
+  preview,
+  onSelect,
+  onResizeStart,
+}: {
+  block: TimetableBlock;
+  conflict: boolean;
+  selected: boolean;
+  /** 시간 조절 중이면 임시 시각(분) */
+  preview?: { start: number; end: number };
+  onSelect: () => void;
+  onResizeStart: (edge: 'top' | 'bottom', ev: React.PointerEvent) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: block.key });
   const dayIdx = DAYS.indexOf(block.slot.day);
-  const top = HEAD_H + minToSlot(toMin(block.slot.start)) * SLOT_H;
-  const height = ((toMin(block.slot.end) - toMin(block.slot.start)) / SLOT_MIN) * SLOT_H;
+  const startMin = preview ? preview.start : toMin(block.slot.start);
+  const endMin = preview ? preview.end : toMin(block.slot.end);
+  const top = HEAD_H + minToSlot(startMin) * SLOT_H;
+  const height = ((endMin - startMin) / SLOT_MIN) * SLOT_H;
   const left = dayIdx * DAY_W; // 요일 영역(.tt-days) 기준
   const c = colorOf(block);
   return (
@@ -66,7 +101,12 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      title={`${block.label} — 드래그로 요일/시간 이동`}
+      data-block="1"
+      title={`${block.label} — 드래그: 요일/시간 이동 · 클릭 후 위/아래 가장자리: 시간 늘리기/줄이기`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
       style={{
         position: 'absolute',
         left: left + 1,
@@ -75,7 +115,8 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
         height: height - 3,
         background: c.fill,
         color: c.text,
-        border: conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
+        border: selected ? '2px solid #E2574C' : conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
+        outline: selected ? '2px solid rgba(226,87,76,0.25)' : 'none',
         borderRadius: 7,
         boxSizing: 'border-box',
         padding: '3px 6px',
@@ -83,7 +124,7 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
         lineHeight: 1.25,
         cursor: 'grab',
         overflow: 'hidden',
-        zIndex: isDragging ? 50 : 10,
+        zIndex: isDragging ? 50 : selected ? 20 : 10,
         opacity: isDragging ? 0.85 : 1,
         boxShadow: isDragging ? '0 6px 16px rgba(29,34,96,0.25)' : 'none',
         transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -92,8 +133,30 @@ function Block({ block, conflict }: { block: TimetableBlock; conflict: boolean }
     >
       <strong>{block.label}</strong>
       <div style={{ fontSize: 10 }}>
-        {block.slot.start}~{block.slot.end}
+        {toHHMM(startMin)}~{toHHMM(endMin)}
       </div>
+      {selected && (
+        <>
+          <div
+            className="tt-resize top"
+            title="위로 끌어 시작 시각 조절"
+            onPointerDown={(ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              onResizeStart('top', ev);
+            }}
+          />
+          <div
+            className="tt-resize bottom"
+            title="아래로 끌어 종료 시각 조절"
+            onPointerDown={(ev) => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              onResizeStart('bottom', ev);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -125,9 +188,51 @@ export default function MonthlyTimetable({
   shifts,
   slotOverrides,
   onSlotOverrideChange,
+  onSessionResize,
   progress,
 }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // 블록 선택(클릭) → 위/아래 가장자리 끌어서 시간 조절(30분 단위, 최소 30분)
+  const [selected, setSelected] = useState<string | null>(null);
+  const [resize, setResize] = useState<ResizeState | null>(null);
+  const resizeRef = useRef<ResizeState | null>(null);
+  resizeRef.current = resize;
+  const blocksRef = useRef<TimetableBlock[]>([]);
+  useEffect(() => {
+    if (!resize) return;
+    const onMove = (e: PointerEvent) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const dSlots = Math.round((e.clientY - r.startY) / SLOT_H);
+      let start = r.origStart;
+      let end = r.origEnd;
+      if (r.edge === 'top') start = Math.min(r.origEnd - SLOT_MIN, Math.max(START_HOUR * 60, r.origStart + dSlots * SLOT_MIN));
+      else end = Math.max(r.origStart + SLOT_MIN, Math.min(END_HOUR * 60, r.origEnd + dSlots * SLOT_MIN));
+      if (start !== r.start || end !== r.end) setResize({ ...r, start, end });
+    };
+    const onUp = () => {
+      const r = resizeRef.current;
+      setResize(null);
+      if (!r) return;
+      const b = blocksRef.current.find((x) => x.key === r.key);
+      if (!b || b.courseId === undefined || b.sessionIdx === undefined) return;
+      if (r.start === r.origStart && r.end === r.origEnd) return;
+      onSessionResize(r.key, b.courseId, b.sessionIdx, { day: b.slot.day, start: toHHMM(r.start), end: toHHMM(r.end) });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resize !== null]);
+  const startResize = (b: TimetableBlock, edge: 'top' | 'bottom', ev: React.PointerEvent) => {
+    const s = toMin(b.slot.start);
+    const e = toMin(b.slot.end);
+    setResize({ key: b.key, edge, startY: ev.clientY, origStart: s, origEnd: e, start: s, end: e });
+  };
 
   // 이번 달(상담 월) 한 장만 — 미래 월 시간표는 만들지 않음
   const viewIdx = atIdx;
@@ -135,6 +240,8 @@ export default function MonthlyTimetable({
     () => buildMonthlyTimetable(courses, track, viewIdx, atIdx, shifts, slotOverrides, progress),
     [courses, track, viewIdx, atIdx, shifts, slotOverrides, progress]
   );
+
+  blocksRef.current = tt.blocks;
 
   const conflictKeys = useMemo(() => {
     const s = new Set<string>();
@@ -189,6 +296,12 @@ export default function MonthlyTimetable({
             <span className="swatch" style={{ background: COLORS.면접.fill }} /> 면접
           </span>
           <span>
+            <span className="swatch" style={{ background: COLORS.교과수학기본심화.fill }} /> 수학 기본심화
+          </span>
+          <span>
+            <span className="swatch" style={{ background: COLORS.교과수학심화.fill }} /> 수학 심화
+          </span>
+          <span>
             <span className="swatch" style={{ background: COLORS.교과수학.fill }} /> 교과 수학
           </span>
           <span>
@@ -215,7 +328,14 @@ export default function MonthlyTimetable({
                 )}
               </div>
               {/* 요일 영역: 헤더·칸·블록은 이 영역 기준 좌표 */}
-              <div className="tt-days" style={{ position: 'relative', width: DAYS.length * DAY_W, height: gridH }}>
+              <div
+                className="tt-days"
+                style={{ position: 'relative', width: DAYS.length * DAY_W, height: gridH }}
+                onClick={(e) => {
+                  // 블록 밖(빈 칸)을 클릭하면 선택 해제
+                  if (!(e.target as Element).closest('[data-block]')) setSelected(null);
+                }}
+              >
                 {DAYS.map((d, i) => (
                   <div
                     key={d}
@@ -229,7 +349,15 @@ export default function MonthlyTimetable({
                   Array.from({ length: SLOT_COUNT }).map((_, s) => <Cell key={`c-${dayIdx}-${s}`} dayIdx={dayIdx} slot={s} />)
                 )}
                 {tt.blocks.map((b) => (
-                  <Block key={b.key} block={b} conflict={conflictKeys.has(b.key)} />
+                  <Block
+                    key={b.key}
+                    block={b}
+                    conflict={conflictKeys.has(b.key)}
+                    selected={selected === b.key}
+                    preview={resize?.key === b.key ? { start: resize.start, end: resize.end } : undefined}
+                    onSelect={() => setSelected((s) => (s === b.key ? null : b.key))}
+                    onResizeStart={(edge, ev) => startResize(b, edge, ev)}
+                  />
                 ))}
               </div>
             </div>

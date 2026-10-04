@@ -13,6 +13,7 @@ import {
   endPos,
   gmIndex,
   gradeOfIndex,
+  mathLaneOf,
   monthOfIndex,
   monthToSeason,
   posToEndYM,
@@ -23,7 +24,7 @@ import {
 
 /** 선택 블록의 시작/종료월 표기: '중2 3월', '중3 10월 중순' */
 const fmtYM = (ym: { grade: string; month: number; half?: boolean }) => `${ym.grade} ${ym.month}월${ym.half ? ' 중순' : ''}`;
-import { gyoLaneLayout, gyoSeqIndex, remainingCourses } from '../lib/logic';
+import { gyoLaneLayout, gyoSeqIndex, remainingCourses, shiftedRange } from '../lib/logic';
 import { ConsultInfo } from './ConsultForm';
 import CourseEditPopup from './CourseEditPopup';
 
@@ -115,9 +116,12 @@ interface Props {
   onCourseChange: (course: Course) => void;
   /** 이 학생 로드맵에서 블록 제거 */
   onHide: (courseId: string) => void;
-  /** 로드맵에 넣지 않은(접어 둔) 과정 — 아래 '숨긴 과목'에서 클릭하면 추가 */
+  /** 로드맵에 넣지 않은(접어 둔) 과정 — 아래 '추가 과목'에서 클릭하거나 끌어다 넣으면 추가 */
   hiddenCourses: Course[];
   onShow: (courseId: string) => void;
+  /** 보이는 수학 레인 수(1 = 수학 교과만, 2 = +기본심화, 3 = +심화). + 버튼으로 늘림 */
+  mathLaneCount: number;
+  onMathLaneCountChange: (n: number) => void;
 }
 
 interface Bar {
@@ -186,8 +190,13 @@ export default function RemainingRoadmap({
   onHide,
   hiddenCourses,
   onShow,
+  mathLaneCount,
+  onMathLaneCountChange,
 }: Props) {
-  const [hcOpen, setHcOpen] = useState(false); // '숨긴 과목' 펼침
+  const [hcOpen, setHcOpen] = useState(false); // '추가 과목' 펼침
+  // 추가 과목 칩을 로드맵으로 끌어다 넣기(포인터 기반)
+  const [chipDrag, setChipDrag] = useState<{ id: string; x: number; y: number; moved: boolean } | null>(null);
+  const chipDragRef = useRef<{ id: string; startX: number; startY: number; moved: boolean } | null>(null);
   const [move, setMove] = useState<MoveState | null>(null);
   const moveRef = useRef<MoveState | null>(null);
   moveRef.current = move;
@@ -252,29 +261,55 @@ export default function RemainingRoadmap({
     fill: courseColor(e.course).fill,
     text: courseColor(e.course).text,
   });
-  // 수학은 세 레인(수학 교과 / 수학 기본심화 / 수학 심화) — 비어 있어도 줄은 항상 보인다
-  const mathLanes = MATH_LANES.map((lane) => ({
+  // 수학 레인: 처음엔 '수학 교과'만, + 버튼으로 기본심화 → 심화 순서로 열린다.
+  // 이미 그 레인에 보이는 과목이 있으면(저장 파일 등) 자동으로 열어 둔다.
+  const neededLanes = courses.reduce((n, c) => {
+    if (c.track !== '공통' || c.subject !== '수학') return n;
+    return Math.max(n, MATH_LANES.indexOf(mathLaneOf(c)) + 1);
+  }, 1);
+  const visibleLaneCount = Math.min(MATH_LANES.length, Math.max(mathLaneCount, neededLanes));
+  const mathLanes = MATH_LANES.slice(0, visibleLaneCount).map((lane) => ({
     lane,
     label: MATH_LANE_LABELS[lane],
     stack: stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts, lane).map(toGyoBar)),
   }));
   const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
 
-  // 숨긴 과목: 이 학생에게 의미 있는 것만(이미 지난 교과 진도·다른 학교 과정 제외), 교과 순서 → 특화 순
+  // 추가 과목: 이 학생에게 의미 있는 것만. 교과 레인은 지난 진도 제외, 기본심화·심화 레인은 (열려 있으면) 중등~고등 전부,
+  // 특화는 목표 학교 것만. 레인/과목별로 묶어서 보여준다.
+  const groupOf = (c: Course): { key: string; label: string; order: number } => {
+    if (c.track === '공통' && c.subject === '수학') {
+      const lane = mathLaneOf(c);
+      return { key: `m-${lane}`, label: MATH_LANE_LABELS[lane], order: MATH_LANES.indexOf(lane) };
+    }
+    if (c.track === '공통') return { key: 's', label: '과학 교과', order: 10 };
+    return { key: `t-${c.subject}`, label: `특화 ${c.subject}`, order: 20 + SPEC_SUBJECTS.indexOf(c.subject) };
+  };
   const hiddenList = hiddenCourses
     .map((c) => ({ c, seq: gyoSeqIndex(c) }))
     .filter(({ c, seq }) => {
-      if (c.track === '공통') return seq === -1 || seq >= (c.subject === '수학' ? mathCurrent : sciCurrent);
+      if (c.track === '공통' && c.subject === '수학') {
+        const laneIdx = MATH_LANES.indexOf(mathLaneOf(c));
+        if (laneIdx >= visibleLaneCount) return false; // 아직 열지 않은 레인
+        return laneIdx > 0 || seq === -1 || seq >= mathCurrent;
+      }
+      if (c.track === '공통') return seq === -1 || seq >= sciCurrent;
       return c.track === track;
     })
     .sort((a, b) => {
-      const ga = a.c.track === '공통' ? 0 : 1;
-      const gb = b.c.track === '공통' ? 0 : 1;
+      const ga = groupOf(a.c).order;
+      const gb = groupOf(b.c).order;
       if (ga !== gb) return ga - gb;
-      if (a.c.subject !== b.c.subject) return a.c.subject.localeCompare(b.c.subject);
       return (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name);
     })
     .map(({ c }) => c);
+  const hiddenGroups = hiddenList.reduce<{ key: string; label: string; items: Course[] }[]>((acc, c) => {
+    const g = groupOf(c);
+    const last = acc[acc.length - 1];
+    if (last && last.key === g.key) last.items.push(c);
+    else acc.push({ key: g.key, label: g.label, items: [c] });
+    return acc;
+  }, []);
 
   // 레이아웃 Y
   let y = HEADER_H + PAD;
@@ -298,6 +333,71 @@ export default function RemainingRoadmap({
     ...mathLayout.flatMap((l) => l.stack.placed.map((b) => ({ b, top: l.top }))),
     ...sciLane.placed.map((b) => ({ b, top: sciLaneTop })),
   ];
+
+  /** 접힌 과목을 로드맵에 넣되, 지정한 위치(0.5월)에서 시작하도록 이 학생의 shift를 맞춘다 */
+  const addAt = (id: string, pos?: number) => {
+    const course = hiddenCourses.find((c) => c.id === id);
+    onShow(id);
+    if (!course || pos === undefined) return;
+    let base: number;
+    let dur: number;
+    if (course.track === '공통') {
+      const lane = course.subject === '수학' ? mathLaneOf(course) : undefined;
+      const cur = course.subject === '수학' ? mathCurrent : sciCurrent;
+      const entry = gyoLaneLayout([...courses, course], course.subject, cur, atIdx, shifts, lane).find((e) => e.course.id === id);
+      if (!entry) return;
+      base = entry.startIdx - entry.shift;
+      dur = entry.endIdx + 0.5 - entry.startIdx;
+    } else {
+      const r = shiftedRange(course, 0);
+      base = r.startIdx;
+      dur = r.endIdx + 0.5 - r.startIdx;
+    }
+    const want = Math.round(pos * 2) / 2;
+    const shift = clamp(want - base, atIdx - base, axisEnd + 1 - dur - base);
+    onShiftChange(id, shift);
+  };
+
+  // 추가 과목 칩 끌기: 4px 이상 움직이면 드래그, 로드맵 위에서 놓으면 그 달에 넣고, 그냥 클릭이면 순서대로 넣는다
+  useEffect(() => {
+    if (!chipDrag) return;
+    const onMove = (e: PointerEvent) => {
+      const d = chipDragRef.current;
+      if (!d) return;
+      if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 4) d.moved = true;
+      if (d.moved) setChipDrag({ id: d.id, x: e.clientX, y: e.clientY, moved: true });
+    };
+    const onUp = (e: PointerEvent) => {
+      const d = chipDragRef.current;
+      chipDragRef.current = null;
+      setChipDrag(null);
+      if (!d) return;
+      if (!d.moved) {
+        addAt(d.id);
+        return;
+      }
+      const svg = svgRef.current;
+      const rect = svg?.getBoundingClientRect();
+      if (!svg || !rect || e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        return; // 로드맵 밖에서 놓음 → 취소
+      }
+      const sx = (e.clientX - rect.left) / (rect.width / chartW);
+      const pos = clamp(axisStart + (sx - LABEL_W) / COL_W, axisStart, axisEnd + 0.5);
+      addAt(d.id, pos);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chipDrag !== null]);
+  const startChipDrag = (ev: React.PointerEvent, id: string) => {
+    ev.preventDefault();
+    chipDragRef.current = { id, startX: ev.clientX, startY: ev.clientY, moved: false };
+    setChipDrag({ id, x: ev.clientX, y: ev.clientY, moved: false });
+  };
 
   // 드래그 1) 몸통: 수강 시기 이동(0.5월 단위, 학생별)
   useEffect(() => {
@@ -520,6 +620,27 @@ export default function RemainingRoadmap({
       {mathLayout.map((l) => (
         <g key={`lc-ml-${l.lane}`}>{rowLabel(l.label, l.top)}</g>
       ))}
+      {/* 마지막 수학 레인 라벨 옆 + : 기본심화 → 심화 레인을 연다 */}
+      {visibleLaneCount < MATH_LANES.length &&
+        (() => {
+          const last = mathLayout[mathLayout.length - 1];
+          const cx = LABEL_W - 16;
+          const cy = last.top + BAR_H / 2;
+          const next = MATH_LANE_LABELS[MATH_LANES[visibleLaneCount]];
+          return (
+            <g
+              className="no-print"
+              style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+              onClick={() => onMathLaneCountChange(visibleLaneCount + 1)}
+            >
+              <title>{next} 레인 추가</title>
+              <circle cx={cx} cy={cy} r={9} fill={BRAND} />
+              <text x={cx} y={cy + 4.5} fontSize={14} fontWeight={700} fill="#fff" textAnchor="middle">
+                +
+              </text>
+            </g>
+          );
+        })()}
       {rowLabel('과학 교과', sciLaneTop)}
       <line x1={LABEL_W - 0.5} y1={0} x2={LABEL_W - 0.5} y2={chartH} stroke={LINE} strokeWidth={1} />
     </g>
@@ -759,26 +880,45 @@ export default function RemainingRoadmap({
             <small>클릭하면 로드맵에 추가됩니다</small>
           </button>
           {hcOpen && (
-            <div className="hc-list">
-              {hiddenList.map((c) => {
-                const col = courseColor(c);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="hc-chip"
-                    style={{ background: col.fill, color: col.text }}
-                    title={`${c.name} 로드맵에 추가`}
-                    onClick={() => onShow(c.id)}
-                  >
-                    + {c.name}
-                  </button>
-                );
-              })}
+            <div className="hc-groups">
+              {hiddenGroups.map((g) => (
+                <div className="hc-group" key={g.key}>
+                  <span className="hc-group-label">{g.label}</span>
+                  <div className="hc-list">
+                    {g.items.map((c) => {
+                      const col = courseColor(c);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="hc-chip"
+                          style={{ background: col.fill, color: col.text, touchAction: 'none' }}
+                          title={`${c.name} — 클릭: 순서대로 추가 · 끌어서 로드맵에 놓기: 그 달부터`}
+                          onPointerDown={(ev) => startChipDrag(ev, c.id)}
+                        >
+                          + {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <small className="muted hc-hint">클릭하면 순서대로 들어가고, 로드맵 위로 끌어다 놓으면 그 달부터 시작합니다.</small>
             </div>
           )}
         </div>
       )}
+      {chipDrag?.moved &&
+        (() => {
+          const c = hiddenCourses.find((x) => x.id === chipDrag.id);
+          if (!c) return null;
+          const col = courseColor(c);
+          return (
+            <div className="hc-ghost" style={{ left: chipDrag.x + 10, top: chipDrag.y + 10, background: col.fill, color: col.text }}>
+              {c.name}
+            </div>
+          );
+        })()}
 
       {popupCourse && (
         <CourseEditPopup

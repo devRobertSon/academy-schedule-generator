@@ -15,6 +15,7 @@ import {
   TrackPlan,
   Weekday,
   YM,
+  defaultScheduleFor,
 } from '../data/roadmap';
 import {
   StoreData,
@@ -79,10 +80,17 @@ export default function AdminPage({ store, onChange }: Props) {
       type: '영재학교입시',
       start: { grade: '중1', month: 3 },
       end: { grade: '중1', month: 8 },
-      schedule: [{ day: '월', start: '17:00', end: '19:00' }],
+      schedule: defaultScheduleFor('수학'), // 수학 기본: 1시간 30분 × 주 2회(월·수)
       teacher: '',
     };
     onChange({ ...store, courses: [...store.courses, nc] });
+  };
+  /** 과목을 바꾸면 수업 시간도 그 과목의 기본값(수학 1.5h×2회, 과학 2.5h×1회)으로 맞춘다 */
+  const changeSubject = (id: string, subject: Subject) => {
+    const c = store.courses.find((x) => x.id === id);
+    if (!c) return;
+    const start = c.schedule[0]?.start ?? '17:00';
+    updateCourse(id, { subject, schedule: defaultScheduleFor(subject, '월수', start) });
   };
 
   const deleteCourse = (id: string) => {
@@ -190,7 +198,7 @@ export default function AdminPage({ store, onChange }: Props) {
                     </select>
                   </td>
                   <td>
-                    <select value={c.subject} onChange={(e) => updateCourse(c.id, { subject: e.target.value as Subject })}>
+                    <select value={c.subject} onChange={(e) => changeSubject(c.id, e.target.value as Subject)}>
                       {SUBJECTS.map((s) => (
                         <option key={s} value={s}>
                           {s}
