@@ -34,12 +34,20 @@ export const COLORS = {
   면접: { fill: '#B4ACF0', text: '#2B2470' },
   교과: { fill: '#CFD9E8', text: '#1F2F4D' }, // (예비) 교과 공통
   교과수학: { fill: '#BFC9F6', text: '#1E2B70' }, // 교과 수학(연보라)
+  교과수학기본심화: { fill: '#A9DDD6', text: '#0E4F4A' }, // 수학 기본심화(청록)
+  교과수학심화: { fill: '#F2E09E', text: '#5C4A00' }, // 수학 심화(연노랑)
   교과과학: { fill: '#F5B7B1', text: '#7B1E1E' }, // 교과 과학(연한 붉은색)
 };
 
-/** 과정의 표시 색: 교과(공통)는 과목별 교과 색, 그 외는 과목 색 */
-export function courseColor(c: { track: Track | '공통'; subject: Subject }) {
-  if (c.track === '공통') return c.subject === '수학' ? COLORS.교과수학 : c.subject === '과학' ? COLORS.교과과학 : COLORS.교과;
+/** 과정의 표시 색: 교과(공통) 수학은 레인별 색, 교과 과학은 교과 과학 색, 그 외는 과목 색 */
+export function courseColor(c: { track: Track | '공통'; subject: Subject; lane?: MathLane }) {
+  if (c.track === '공통') {
+    if (c.subject === '수학') {
+      const lane = c.lane ?? '교과';
+      return lane === '기본심화' ? COLORS.교과수학기본심화 : lane === '심화' ? COLORS.교과수학심화 : COLORS.교과수학;
+    }
+    return c.subject === '과학' ? COLORS.교과과학 : COLORS.교과;
+  }
   return COLORS[c.subject];
 }
 
@@ -209,7 +217,12 @@ export const MATH_GYO_DEFAULT_LAST = '공통수학2';
 export function defaultHiddenIds(courses: Course[]): string[] {
   const last = MATH_GYO_SEQUENCE.indexOf(MATH_GYO_DEFAULT_LAST);
   return courses
-    .filter((c) => c.track === '공통' && c.subject === '수학' && MATH_GYO_SEQUENCE.indexOf(c.name) > last)
+    .filter((c) => {
+      if (c.track !== '공통' || c.subject !== '수학') return false;
+      const lane = c.lane ?? '교과';
+      if (lane !== '교과') return true; // 기본심화·심화 벌은 전부 접어 둠(+로 레인을 열고 끌어다 넣음)
+      return MATH_GYO_SEQUENCE.indexOf(c.name) > last;
+    })
     .map((c) => c.id);
 }
 
@@ -224,6 +237,26 @@ function ymOf(idx: number): YM {
  * 교과(공통) 블록을 일반 과정으로 생성 — 과정 표에서 시작/종료(=개월수)·세션·담당쌤을 편집.
  * 시작/종료는 블록 길이(개월)로만 쓰이고, 실제 위치는 학생 진도 기준 오늘부터 순서대로 배치된다.
  */
+/**
+ * 과목별 기본 수업 시간:
+ *  - 수학: 1시간 30분, 주 2회(월·수 또는 화·목)
+ *  - 과학: 2시간 30분, 주 1회(토)
+ *  - 면접: 2시간, 주 1회(금)
+ */
+export function defaultScheduleFor(subject: Subject, pair: '월수' | '화목' = '월수', startHHMM = '17:00'): TimeSlot[] {
+  const addMin = (hhmm: string, min: number) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    const t = h * 60 + m + min;
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  };
+  if (subject === '수학') {
+    const days: Weekday[] = pair === '월수' ? ['월', '수'] : ['화', '목'];
+    return days.map((day) => ({ day, start: startHHMM, end: addMin(startHHMM, 90) }));
+  }
+  if (subject === '과학') return [{ day: '토', start: startHHMM, end: addMin(startHHMM, 150) }];
+  return [{ day: '금', start: startHHMM, end: addMin(startHHMM, 120) }];
+}
+
 function makeGyoCourses(
   prefix: string,
   subject: Subject,
@@ -231,7 +264,8 @@ function makeGyoCourses(
   durs: number[],
   types: CourseType[],
   sessions: TimeSlot[],
-  teacher: string
+  teacher: string,
+  lane?: MathLane
 ): Course[] {
   let acc = 0;
   return names.map((name, i) => {
@@ -248,27 +282,31 @@ function makeGyoCourses(
       end: ymOf(end),
       schedule: sessions.map((s) => ({ ...s })),
       teacher: teacher || undefined,
+      ...(lane ? { lane } : {}),
     };
   });
 }
 
+const MATH_DURS = MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS));
+const MATH_TYPES: CourseType[] = MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? '중등선행' : '고등선행'));
+
+/**
+ * 교과(공통) 과정. 수학은 레인(교과 / 기본심화 / 심화)마다 중1-1학기 ~ 기하 전체가 한 벌씩 있어
+ * 같은 과목을 여러 레인에 동시에 둘 수 있다(예: 공통수학1 교과 + 공통수학1 심화).
+ * 기본심화·심화 벌은 처음에 접혀 있고(추가 과목), + 버튼으로 레인을 열어 끌어다 넣는다.
+ */
 export const GYO_COURSES: Course[] = [
-  ...makeGyoCourses(
-    'gyo_math',
-    '수학',
-    MATH_GYO_SEQUENCE,
-    MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? GYO_PACE.mathMonthsPerItem : GYO_BLOCK_MONTHS)),
-    MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_ADV_START ? '중등선행' : '고등선행')),
-    [{ day: '수', start: '16:00', end: '18:00' }, { day: '토', start: '14:00', end: '16:00' }],
-    ''
-  ),
+  // 기본 시각은 특화 과정(월 18시 창의수학, 화 18시 KMO, 토 오후 특강)과 겹치지 않게 배치
+  ...makeGyoCourses('gyo_math', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '월수', '16:00'), '', '교과'),
+  ...makeGyoCourses('gyo_math_b', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '화목', '16:00'), '', '기본심화'),
+  ...makeGyoCourses('gyo_math_a', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '화목', '19:00'), '', '심화'),
   ...makeGyoCourses(
     'gyo_sci',
     '과학',
     SCI_GYO_ALL,
     SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? GYO_PACE.sciMonthsPerItem : GYO_BLOCK_MONTHS)),
     SCI_GYO_ALL.map((_, i) => (i < SCI_GYO_MID_SEQUENCE.length ? '중등선행' : '고등선행')),
-    [{ day: '금', start: '16:00', end: '18:00' }],
+    defaultScheduleFor('과학', '월수', '17:00'), // 토 17:00~19:30
     ''
   ),
 ];

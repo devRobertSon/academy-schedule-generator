@@ -97,6 +97,8 @@ export interface TimetableBlock {
   courseId?: string;
   sessionIdx?: number;
   gyo?: 'math' | 'sci';
+  /** 교과 수학 레인(색 구분용) */
+  lane?: MathLane;
   label: string;
   subject: Subject;
   teacher?: string;
@@ -181,10 +183,12 @@ export function gyoLaneLayout(
   if (subject === '수학' && lane === undefined) {
     return MATH_LANES.flatMap((l) => gyoLaneLayout(courses, subject, currentIdx, atIdx, shifts, l));
   }
+  // 기본심화·심화 레인은 학생 진도와 무관하게(중등부터 고등까지) 아무 과목이나 넣을 수 있다
+  const byProgress = subject !== '수학' || lane === '교과';
   const list = courses
     .filter((c) => c.track === '공통' && c.subject === subject && (subject !== '수학' || mathLaneOf(c) === lane))
     .map((c) => ({ c, seq: gyoSeqIndex(c) }))
-    .filter((x) => x.seq === -1 || x.seq >= currentIdx)
+    .filter((x) => !byProgress || x.seq === -1 || x.seq >= currentIdx)
     .sort((a, b) => (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name));
   let acc = atIdx;
   return list.map(({ c, seq }) => {
@@ -193,7 +197,7 @@ export function gyoLaneLayout(
     acc += dur;
     const wanted = base + (shifts[c.id] ?? 0);
     const startIdx = Math.max(atIdx, Math.min(60 - dur, wanted));
-    return { course: c, startIdx, endIdx: startIdx + dur - 0.5, shift: startIdx - base, current: seq === currentIdx };
+    return { course: c, startIdx, endIdx: startIdx + dur - 0.5, shift: startIdx - base, current: byProgress && seq === currentIdx };
   });
 }
 
@@ -232,6 +236,7 @@ export function buildMonthlyTimetable(
         courseId: c.id,
         sessionIdx: i,
         gyo: c.track === '공통' ? (c.subject === '수학' ? 'math' : 'sci') : undefined,
+        lane: c.track === '공통' && c.subject === '수학' ? mathLaneOf(c) : undefined,
         label: c.name,
         subject: c.subject,
         teacher: c.teacher,
