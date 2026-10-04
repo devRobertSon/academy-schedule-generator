@@ -8,10 +8,13 @@ interface Props {
   onSave: (course: Course) => void;
   onClose: () => void;
   onRemove: () => void;
+  /** (교과 수학) 시간표에서 월·수 / 화·목 세션을 함께 움직일지 — 학생별 설정. 없으면 스위치를 숨김 */
+  linked?: boolean;
+  onLinkedChange?: (linked: boolean) => void;
 }
 
 /** 로드맵 블록 클릭 시 뜨는 팝업: 요일·시간(세션)·담당쌤 편집 → 관리 탭(과정 데이터)에 반영 */
-export default function CourseEditPopup({ course, onSave, onClose, onRemove }: Props) {
+export default function CourseEditPopup({ course, onSave, onClose, onRemove, linked, onLinkedChange }: Props) {
   const [teacher, setTeacher] = useState(course.teacher ?? '');
   const [sessions, setSessions] = useState<TimeSlot[]>(course.schedule.map((s) => ({ ...s })));
 
@@ -62,6 +65,16 @@ export default function CourseEditPopup({ course, onSave, onClose, onRemove }: P
             </button>
           </div>
         </div>
+
+        {onLinkedChange && (
+          <label className="modal-field modal-check">
+            <input type="checkbox" checked={!!linked} onChange={(e) => onLinkedChange(e.target.checked)} />
+            <span>
+              세션 함께 움직이기
+              <small className="muted"> — 시간표에서 한 블록을 옮기면 짝(월·수 / 화·목)도 같이 이동. 끄면 따로 움직임 (Shift+드래그로도 분리)</small>
+            </span>
+          </label>
+        )}
 
         <div className="modal-actions">
           <button className="primary" onClick={() => onSave({ ...course, teacher: teacher || undefined, schedule: sessions })}>

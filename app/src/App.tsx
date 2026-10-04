@@ -47,6 +47,8 @@ interface SavedFile {
     hidden: string[];
     /** 보이는 수학 레인 수(1~3) */
     mathLaneCount?: number;
+    /** 시간표에서 세션을 따로 움직이기로 한 교과 수학 과정 id */
+    unlinked?: string[];
     viewIdx?: number; // (구버전 파일 호환용, 지금은 쓰지 않음)
   };
 }
@@ -76,6 +78,10 @@ export default function App() {
   const [hidden, setHidden] = useState<string[]>(() => defaultHiddenIds(store.courses));
   // 로드맵 수학 레인: 처음엔 '수학 교과'만, + 버튼으로 기본심화 → 심화를 연다
   const [mathLaneCount, setMathLaneCount] = useState(1);
+  // 시간표에서 월·수/화·목 세션을 따로 움직이기로 한 교과 수학 과정(기본은 함께 움직임)
+  const [unlinked, setUnlinked] = useState<string[]>([]);
+  const setUnlinkedFor = (id: string, v: boolean) =>
+    setUnlinked((u) => (v ? (u.includes(id) ? u : [...u, id]) : u.filter((x) => x !== id)));
   const [logoOk, setLogoOk] = useState(true);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
@@ -106,7 +112,7 @@ export default function App() {
       version: 1,
       courses: store.courses,
       plans: store.plans,
-      consult: { info, track, shifts, slotOverrides, hidden, mathLaneCount },
+      consult: { info, track, shifts, slotOverrides, hidden, mathLaneCount, unlinked },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -130,6 +136,7 @@ export default function App() {
         setSlotOverrides(c.slotOverrides ?? {});
         setHidden(c.hidden ?? []);
         setMathLaneCount(c.mathLaneCount ?? 1);
+        setUnlinked(c.unlinked ?? []);
       }
       alert('불러왔습니다.');
     } catch (e) {
@@ -281,6 +288,8 @@ export default function App() {
                   onShow={(id) => setHidden((h) => h.filter((x) => x !== id))}
                   mathLaneCount={mathLaneCount}
                   onMathLaneCountChange={setMathLaneCount}
+                  unlinked={unlinked}
+                  onUnlinkedChange={setUnlinkedFor}
                 />
               </div>
               <JourneySummary summary={journey} />
@@ -311,6 +320,10 @@ export default function App() {
                   // 이 학생이 요일/시간을 옮겨 둔 세션이면 그 값도 같이 맞춘다
                   setSlotOverrides((s) => (s[key] ? { ...s, [key]: { ...s[key], start: slot.start, end: slot.end } } : s));
                 }}
+                onCourseChange={(course) => updateCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
+                onHideCourse={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
+                unlinked={unlinked}
+                onUnlinkedChange={setUnlinkedFor}
               />
             </section>
           </div>

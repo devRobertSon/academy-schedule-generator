@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CourseEditPopup from './CourseEditPopup';
 import {
   DndContext,
   DragEndEvent,
+  DragStartEvent,
   PointerSensor,
   closestCenter,
   useDraggable,
@@ -39,8 +41,18 @@ interface Props {
   onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
   /** 블록을 선택한 뒤 위/아래 가장자리를 끌어 시간을 늘리고 줄임 → 과정의 수업 시간에 반영 */
   onSessionResize: (sessionKey: string, courseId: string, sessionIdx: number, slot: TimeSlot) => void;
+  /** 선택된 블록을 다시 클릭하면 뜨는 편집 팝업(요일·시간·선생님)의 저장 → 과정 데이터에 반영 */
+  onCourseChange: (course: Course) => void;
+  /** 팝업의 '제거' → 이 학생 로드맵·시간표에서 과정 숨김 */
+  onHideCourse: (courseId: string) => void;
+  /** 세션을 따로 움직이기로 한(분리된) 교과 수학 과정 id — 학생별. 기본은 함께 움직임 */
+  unlinked: string[];
+  onUnlinkedChange: (courseId: string, unlinked: boolean) => void;
   progress: GyoProgress;
 }
+
+/** 월·수 / 화·목 세션을 함께 움직이는 대상: 교과 수학(교과·기본심화·심화)만 */
+const isLinkable = (b: TimetableBlock) => b.gyo === 'math' && b.courseId !== undefined;
 
 /** 시간 조절 중인 블록의 임시 시각 */
 interface ResizeState {
@@ -75,10 +87,12 @@ const minToSlot = (min: number) => Math.round((min - START_HOUR * 60) / SLOT_MIN
 function Block({
   block,
   conflict,
-  selected,
+  selected: selectedProp,
   preview,
   onSelect,
   onResizeStart,
+  linkedHighlight,
+  unlinkedBadge,
 }: {
   block: TimetableBlock;
   conflict: boolean;
@@ -87,7 +101,12 @@ function Block({
   preview?: { start: number; end: number };
   onSelect: () => void;
   onResizeStart: (edge: 'top' | 'bottom', ev: React.PointerEvent) => void;
+  /** 짝 세션이 드래그 중 → 같이 움직인다는 뜻으로 선택 표시 */
+  linkedHighlight?: boolean;
+  /** 세션을 따로 움직이기로 한 과정 → 분리 표시 */
+  unlinkedBadge?: boolean;
 }) {
+  const selected = selectedProp || !!linkedHighlight;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: block.key });
   const dayIdx = DAYS.indexOf(block.slot.day);
   const startMin = preview ? preview.start : toMin(block.slot.start);
@@ -115,8 +134,9 @@ function Block({
         height: height - 3,
         background: c.fill,
         color: c.text,
-        border: selected ? '2px solid #E2574C' : conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
-        outline: selected ? '2px solid rgba(226,87,76,0.25)' : 'none',
+        // 드래그 중에도 로드맵처럼 선택 표시(붉은 테두리)
+        border: selected || isDragging ? '2px solid #E2574C' : conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
+        outline: selected || isDragging ? '2px solid rgba(226,87,76,0.25)' : 'none',
         borderRadius: 7,
         boxSizing: 'border-box',
         padding: '3px 6px',
@@ -135,7 +155,12 @@ function Block({
       <div style={{ fontSize: 10 }}>
         {toHHMM(startMin)}~{toHHMM(endMin)}
       </div>
-      {selected && (
+      {unlinkedBadge && (
+        <span className="tt-unlinked" title="세션을 따로 움직이는 중 (팝업에서 '세션 함께 움직이기'로 다시 묶기)">
+          분리
+        </span>
+      )}
+      {selectedProp && (
         <>
           <div
             className="tt-resize top"
@@ -189,9 +214,19 @@ export default function MonthlyTimetable({
   slotOverrides,
   onSlotOverrideChange,
   onSessionResize,
+  onCourseChange,
+  onHideCourse,
+  unlinked,
+  onUnlinkedChange,
   progress,
 }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // 드래그 중인 블록(짝 세션에도 선택 표시를 주기 위해)
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const isLinked = (b: TimetableBlock) => isLinkable(b) && !unlinked.includes(b.courseId!);
+  // 선택된 블록을 한 번 더 클릭 → 과정 편집 팝업(로드맵과 동일)
+  const [popupCourseId, setPopupCourseId] = useState<string | null>(null);
+  const popupCourse = popupCourseId ? courses.find((c) => c.id === popupCourseId) : undefined;
 
   // 블록 선택(클릭) → 위/아래 가장자리 끌어서 시간 조절(30분 단위, 최소 30분)
   const [selected, setSelected] = useState<string | null>(null);
@@ -219,6 +254,18 @@ export default function MonthlyTimetable({
       if (!b || b.courseId === undefined || b.sessionIdx === undefined) return;
       if (r.start === r.origStart && r.end === r.origEnd) return;
       onSessionResize(r.key, b.courseId, b.sessionIdx, { day: b.slot.day, start: toHHMM(r.start), end: toHHMM(r.end) });
+      // 함께 움직이는 교과 수학이면 짝 세션의 시간도 같은 만큼 늘리고 줄인다
+      if (isLinkable(b) && !unlinked.includes(b.courseId)) {
+        const dS = r.start - r.origStart;
+        const dE = r.end - r.origEnd;
+        for (const sib of blocksRef.current) {
+          if (sib.courseId !== b.courseId || sib.key === b.key || sib.sessionIdx === undefined) continue;
+          const s = Math.max(START_HOUR * 60, toMin(sib.slot.start) + dS);
+          const en = Math.min(END_HOUR * 60, toMin(sib.slot.end) + dE);
+          if (en - s < SLOT_MIN) continue;
+          onSessionResize(sib.key, sib.courseId!, sib.sessionIdx, { day: sib.slot.day, start: toHHMM(s), end: toHHMM(en) });
+        }
+      }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -252,21 +299,42 @@ export default function MonthlyTimetable({
     return s;
   }, [tt]);
 
+  /** 블록을 (dayIdx, startMin)으로 옮긴 결과 슬롯. 시간표 범위 안으로 맞춘다 */
+  const movedSlot = (b: TimetableBlock, dayIdx: number, startMin: number): TimeSlot => {
+    const dur = toMin(b.slot.end) - toMin(b.slot.start);
+    const d = Math.max(0, Math.min(DAYS.length - 1, dayIdx));
+    const s = Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - dur, startMin));
+    return { day: DAYS[d], start: toHHMM(s), end: toHHMM(s + dur) };
+  };
+
   const handleDragEnd = (e: DragEndEvent) => {
+    setDraggingKey(null);
     const { active, over } = e;
     if (!over) return;
     const m = String(over.id).match(/^cell-(\d+)-(\d+)$/);
     if (!m) return;
-    const day = DAYS[Number(m[1])];
-    const slotIdx = Number(m[2]);
+    const newDayIdx = Number(m[1]);
+    const newStart = slotToMin(Number(m[2]));
     const block = tt.blocks.find((b) => b.key === String(active.id));
     if (!block) return;
-    const dur = toMin(block.slot.end) - toMin(block.slot.start);
-    let startMin = slotToMin(slotIdx);
-    const maxStart = END_HOUR * 60 - dur;
-    if (startMin > maxStart) startMin = maxStart;
-    if (startMin < START_HOUR * 60) startMin = START_HOUR * 60;
-    onSlotOverrideChange(block.key, { day, start: toHHMM(startMin), end: toHHMM(startMin + dur) });
+    const moved = movedSlot(block, newDayIdx, newStart);
+    onSlotOverrideChange(block.key, moved);
+
+    // 교과 수학: Shift 없이 옮기면 짝 세션(월·수 / 화·목)도 같은 만큼 같이 이동.
+    // Shift+드래그면 이 블록만 옮기고, 그 과정은 '분리됨'으로 표시한다.
+    if (!isLinkable(block)) return;
+    const shiftKey = !!(e.activatorEvent as MouseEvent | null)?.shiftKey;
+    if (shiftKey) {
+      if (isLinked(block)) onUnlinkedChange(block.courseId!, true);
+      return;
+    }
+    if (!isLinked(block)) return;
+    const dDay = DAYS.indexOf(moved.day) - DAYS.indexOf(block.slot.day);
+    const dMin = toMin(moved.start) - toMin(block.slot.start);
+    for (const sib of tt.blocks) {
+      if (sib.courseId !== block.courseId || sib.key === block.key) continue;
+      onSlotOverrideChange(sib.key, movedSlot(sib, DAYS.indexOf(sib.slot.day) + dDay, toMin(sib.slot.start) + dMin));
+    }
   };
 
   const gridW = TIME_COL_W + DAYS.length * DAY_W;
@@ -311,7 +379,16 @@ export default function MonthlyTimetable({
         </div>
 
         <div className="tt-scroll">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => {
+              setSelected(String(e.active.id));
+              setDraggingKey(String(e.active.id));
+            }}
+            onDragCancel={() => setDraggingKey(null)}
+            onDragEnd={handleDragEnd}
+          >
             <div className="tt-grid" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', width: gridW, height: gridH }}>
               {/* 왼쪽 시간 열: 가로 스크롤 시에도 항상 보이도록 sticky */}
               <div className="tt-timecol" style={{ position: 'sticky', left: 0, flex: `0 0 ${TIME_COL_W}px`, width: TIME_COL_W, height: gridH }}>
@@ -355,14 +432,49 @@ export default function MonthlyTimetable({
                     conflict={conflictKeys.has(b.key)}
                     selected={selected === b.key}
                     preview={resize?.key === b.key ? { start: resize.start, end: resize.end } : undefined}
-                    onSelect={() => setSelected((s) => (s === b.key ? null : b.key))}
+                    onSelect={() => {
+                      // 처음 클릭 → 선택, 선택된 블록을 다시 클릭 → 편집 팝업
+                      if (selected === b.key) {
+                        if (b.courseId) setPopupCourseId(b.courseId);
+                      } else {
+                        setSelected(b.key);
+                      }
+                    }}
                     onResizeStart={(edge, ev) => startResize(b, edge, ev)}
+                    linkedHighlight={
+                      !!draggingKey &&
+                      draggingKey !== b.key &&
+                      isLinked(b) &&
+                      tt.blocks.find((x) => x.key === draggingKey)?.courseId === b.courseId
+                    }
+                    unlinkedBadge={isLinkable(b) && unlinked.includes(b.courseId!)}
                   />
                 ))}
               </div>
             </div>
           </DndContext>
         </div>
+        {popupCourse && (
+          <CourseEditPopup
+            course={popupCourse}
+            onSave={(c) => {
+              onCourseChange(c);
+              setPopupCourseId(null);
+            }}
+            onClose={() => setPopupCourseId(null)}
+            onRemove={() => {
+              onHideCourse(popupCourse.id);
+              setPopupCourseId(null);
+              setSelected(null);
+            }}
+            {...(popupCourse.track === '공통' && popupCourse.subject === '수학'
+              ? {
+                  linked: !unlinked.includes(popupCourse.id),
+                  onLinkedChange: (v: boolean) => onUnlinkedChange(popupCourse.id, !v),
+                }
+              : {})}
+          />
+        )}
       </div>
 
       <aside className="tt-side">
