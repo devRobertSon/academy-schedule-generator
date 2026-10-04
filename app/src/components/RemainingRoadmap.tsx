@@ -30,7 +30,7 @@ import CourseEditPopup from './CourseEditPopup';
 
 const COL_W = 30;
 const HALF_W = COL_W / 2; // 0.5월
-const LABEL_W = 132;
+const LABEL_W = 160; // 왼쪽 라벨 열(가장 긴 '수학 기본심화' + −/+ 버튼이 들어가는 폭)
 const PHASE_H = 30; // 단계(국면) 띠
 const MS_H = 26; // 시험 마일스톤 줄(◆만 표시, 이름은 마우스 오버 툴팁)
 const GRADE_H = 26;
@@ -620,27 +620,44 @@ export default function RemainingRoadmap({
       {mathLayout.map((l) => (
         <g key={`lc-ml-${l.lane}`}>{rowLabel(l.label, l.top)}</g>
       ))}
-      {/* 마지막 수학 레인 라벨 옆 + : 기본심화 → 심화 레인을 연다 */}
-      {visibleLaneCount < MATH_LANES.length &&
-        (() => {
-          const last = mathLayout[mathLayout.length - 1];
-          const cx = LABEL_W - 16;
-          const cy = last.top + BAR_H / 2;
-          const next = MATH_LANE_LABELS[MATH_LANES[visibleLaneCount]];
-          return (
-            <g
-              className="no-print"
-              style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-              onClick={() => onMathLaneCountChange(visibleLaneCount + 1)}
-            >
-              <title>{next} 레인 추가</title>
-              <circle cx={cx} cy={cy} r={9} fill={BRAND} />
-              <text x={cx} y={cy + 4.5} fontSize={14} fontWeight={700} fill="#fff" textAnchor="middle">
-                +
-              </text>
-            </g>
-          );
-        })()}
+      {/* 마지막 수학 레인 라벨 옆 + / − : + 는 기본심화 → 심화 레인을 열고, − 는 마지막 레인을 닫는다(그 레인 과목은 추가 과목으로) */}
+      {(() => {
+        const last = mathLayout[mathLayout.length - 1];
+        const cy = last.top + BAR_H / 2;
+        const canAdd = visibleLaneCount < MATH_LANES.length;
+        const canRemove = visibleLaneCount > 1;
+        const plusX = LABEL_W - 16;
+        const minusX = canAdd ? LABEL_W - 16 - 22 : LABEL_W - 16;
+        const closeLane = () => {
+          const lane = MATH_LANES[visibleLaneCount - 1];
+          courses
+            .filter((c) => c.track === '공통' && c.subject === '수학' && mathLaneOf(c) === lane)
+            .forEach((c) => onHide(c.id));
+          onMathLaneCountChange(visibleLaneCount - 1);
+        };
+        return (
+          <g className="no-print">
+            {canRemove && (
+              <g style={{ cursor: 'pointer', pointerEvents: 'auto' }} onClick={closeLane}>
+                <title>{MATH_LANE_LABELS[MATH_LANES[visibleLaneCount - 1]]} 레인 닫기 (과목은 추가 과목으로 이동)</title>
+                <circle cx={minusX} cy={cy} r={9} fill="#fff" stroke={BRAND} strokeWidth={1.5} />
+                <text x={minusX} y={cy + 4.5} fontSize={14} fontWeight={700} fill={BRAND} textAnchor="middle">
+                  −
+                </text>
+              </g>
+            )}
+            {canAdd && (
+              <g style={{ cursor: 'pointer', pointerEvents: 'auto' }} onClick={() => onMathLaneCountChange(visibleLaneCount + 1)}>
+                <title>{MATH_LANE_LABELS[MATH_LANES[visibleLaneCount]]} 레인 추가</title>
+                <circle cx={plusX} cy={cy} r={9} fill={BRAND} />
+                <text x={plusX} y={cy + 4.5} fontSize={14} fontWeight={700} fill="#fff" textAnchor="middle">
+                  +
+                </text>
+              </g>
+            )}
+          </g>
+        );
+      })()}
       {rowLabel('과학 교과', sciLaneTop)}
       <line x1={LABEL_W - 0.5} y1={0} x2={LABEL_W - 0.5} y2={chartH} stroke={LINE} strokeWidth={1} />
     </g>
