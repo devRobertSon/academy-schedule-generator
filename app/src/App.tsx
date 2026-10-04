@@ -311,6 +311,8 @@ export default function App() {
                   // 이 학생이 요일/시간을 옮겨 둔 세션이면 그 값도 같이 맞춘다
                   setSlotOverrides((s) => (s[key] ? { ...s, [key]: { ...s[key], start: slot.start, end: slot.end } } : s));
                 }}
+                onCourseChange={(course) => updateCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
+                onHideCourse={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
               />
             </section>
           </div>

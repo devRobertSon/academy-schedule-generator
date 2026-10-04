@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CourseEditPopup from './CourseEditPopup';
 import {
   DndContext,
   DragEndEvent,
+  DragStartEvent,
   PointerSensor,
   closestCenter,
   useDraggable,
@@ -39,6 +41,10 @@ interface Props {
   onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
   /** 블록을 선택한 뒤 위/아래 가장자리를 끌어 시간을 늘리고 줄임 → 과정의 수업 시간에 반영 */
   onSessionResize: (sessionKey: string, courseId: string, sessionIdx: number, slot: TimeSlot) => void;
+  /** 선택된 블록을 다시 클릭하면 뜨는 편집 팝업(요일·시간·선생님)의 저장 → 과정 데이터에 반영 */
+  onCourseChange: (course: Course) => void;
+  /** 팝업의 '제거' → 이 학생 로드맵·시간표에서 과정 숨김 */
+  onHideCourse: (courseId: string) => void;
   progress: GyoProgress;
 }
 
@@ -115,8 +121,9 @@ function Block({
         height: height - 3,
         background: c.fill,
         color: c.text,
-        border: selected ? '2px solid #E2574C' : conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
-        outline: selected ? '2px solid rgba(226,87,76,0.25)' : 'none',
+        // 드래그 중에도 로드맵처럼 선택 표시(붉은 테두리)
+        border: selected || isDragging ? '2px solid #E2574C' : conflict ? '2px solid #E2574C' : '1px solid rgba(0,0,0,0.12)',
+        outline: selected || isDragging ? '2px solid rgba(226,87,76,0.25)' : 'none',
         borderRadius: 7,
         boxSizing: 'border-box',
         padding: '3px 6px',
@@ -189,9 +196,14 @@ export default function MonthlyTimetable({
   slotOverrides,
   onSlotOverrideChange,
   onSessionResize,
+  onCourseChange,
+  onHideCourse,
   progress,
 }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  // 선택된 블록을 한 번 더 클릭 → 과정 편집 팝업(로드맵과 동일)
+  const [popupCourseId, setPopupCourseId] = useState<string | null>(null);
+  const popupCourse = popupCourseId ? courses.find((c) => c.id === popupCourseId) : undefined;
 
   // 블록 선택(클릭) → 위/아래 가장자리 끌어서 시간 조절(30분 단위, 최소 30분)
   const [selected, setSelected] = useState<string | null>(null);
@@ -311,7 +323,12 @@ export default function MonthlyTimetable({
         </div>
 
         <div className="tt-scroll">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e: DragStartEvent) => setSelected(String(e.active.id))}
+            onDragEnd={handleDragEnd}
+          >
             <div className="tt-grid" style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', width: gridW, height: gridH }}>
               {/* 왼쪽 시간 열: 가로 스크롤 시에도 항상 보이도록 sticky */}
               <div className="tt-timecol" style={{ position: 'sticky', left: 0, flex: `0 0 ${TIME_COL_W}px`, width: TIME_COL_W, height: gridH }}>
@@ -355,7 +372,14 @@ export default function MonthlyTimetable({
                     conflict={conflictKeys.has(b.key)}
                     selected={selected === b.key}
                     preview={resize?.key === b.key ? { start: resize.start, end: resize.end } : undefined}
-                    onSelect={() => setSelected((s) => (s === b.key ? null : b.key))}
+                    onSelect={() => {
+                      // 처음 클릭 → 선택, 선택된 블록을 다시 클릭 → 편집 팝업
+                      if (selected === b.key) {
+                        if (b.courseId) setPopupCourseId(b.courseId);
+                      } else {
+                        setSelected(b.key);
+                      }
+                    }}
                     onResizeStart={(edge, ev) => startResize(b, edge, ev)}
                   />
                 ))}
@@ -363,6 +387,21 @@ export default function MonthlyTimetable({
             </div>
           </DndContext>
         </div>
+        {popupCourse && (
+          <CourseEditPopup
+            course={popupCourse}
+            onSave={(c) => {
+              onCourseChange(c);
+              setPopupCourseId(null);
+            }}
+            onClose={() => setPopupCourseId(null)}
+            onRemove={() => {
+              onHideCourse(popupCourse.id);
+              setPopupCourseId(null);
+              setSelected(null);
+            }}
+          />
+        )}
       </div>
 
       <aside className="tt-side">
