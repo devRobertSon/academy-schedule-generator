@@ -13,6 +13,7 @@ import {
   Track,
   TrackPlan,
   endPos,
+  forTrack,
   gmIndex,
   mathLaneOf,
   startPos,
@@ -65,7 +66,7 @@ export function remainingCourses(
   shifts: Record<string, number> = {}
 ): RoadmapEntry[] {
   return courses
-    .filter((c) => c.track === track)
+    .filter((c) => forTrack(c, track))
     .map((c) => {
       const shift = shifts[c.id] ?? 0;
       const { startIdx, endIdx } = shiftedRange(c, shift);
@@ -224,7 +225,7 @@ export function buildMonthlyTimetable(
   for (const c of courses) {
     let range: { startIdx: number; endIdx: number } | undefined;
     if (c.track === '공통') range = gyoRange.get(c.id);
-    else if (c.track === track) range = shiftedRange(c, shifts[c.id] ?? 0);
+    else if (forTrack(c, track)) range = shiftedRange(c, shifts[c.id] ?? 0);
     if (!range) continue;
     if (range.startIdx > viewIdx + 0.5 || range.endIdx < viewIdx) continue; // 이 달과 안 겹침
     c.schedule.forEach((base, i) => {

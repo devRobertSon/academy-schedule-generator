@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import {
   COURSE_TYPES,
   Course,
+  CourseTrack,
   CourseType,
   Grade,
   GRADES,
@@ -26,7 +27,7 @@ import {
 } from '../lib/store';
 
 const SUBJECTS: Subject[] = ['수학', '과학', '면접'];
-const TRACK_OPTIONS: (Track | '공통')[] = [...TRACKS, '공통'];
+const TRACK_OPTIONS: CourseTrack[] = [...TRACKS, '전체', '공통'];
 const DAYS: Weekday[] = ['월', '화', '수', '목', '금', '토', '일'];
 const MONTHS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2];
 
@@ -189,7 +190,7 @@ export default function AdminPage({ store, onChange }: Props) {
                     <input value={c.name} onChange={(e) => updateCourse(c.id, { name: e.target.value })} />
                   </td>
                   <td>
-                    <select value={c.track} onChange={(e) => updateCourse(c.id, { track: e.target.value as Track | '공통' })}>
+                    <select value={c.track} onChange={(e) => updateCourse(c.id, { track: e.target.value as CourseTrack })}>
                       {TRACK_OPTIONS.map((t) => (
                         <option key={t} value={t}>
                           {t}

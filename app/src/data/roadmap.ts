@@ -39,8 +39,18 @@ export const COLORS = {
   교과과학: { fill: '#F5B7B1', text: '#7B1E1E' }, // 교과 과학(연한 붉은색)
 };
 
+/**
+ * 과정이 속한 트랙:
+ *  - 목표 학교 하나(영재학교·과학고·…): 그 학교를 고른 학생에게만 보임
+ *  - '공통': 교과 과정(수학/과학 레인)
+ *  - '전체': 학교와 무관한 특화 과정(심화 수학, 특강 등). 어느 학교를 골라도 '추가 과목'에 나와 끌어다 쓸 수 있음
+ */
+export type CourseTrack = Track | '공통' | '전체';
+/** 이 과정이 목표 학교 track 의 로드맵·시간표에 들어갈 수 있는가(교과 '공통'은 제외) */
+export const forTrack = (c: { track: CourseTrack }, track: Track) => c.track === track || c.track === '전체';
+
 /** 과정의 표시 색: 교과(공통) 수학은 레인별 색, 교과 과학은 교과 과학 색, 그 외는 과목 색 */
-export function courseColor(c: { track: Track | '공통'; subject: Subject; lane?: MathLane }) {
+export function courseColor(c: { track: CourseTrack; subject: Subject; lane?: MathLane }) {
   if (c.track === '공통') {
     if (c.subject === '수학') {
       const lane = c.lane ?? '교과';
@@ -117,7 +127,7 @@ export const MATH_LANE_LABELS: Record<MathLane, string> = { 교과: '수학 교�
 export interface Course {
   id: string;
   name: string;
-  track: Track | '공통'; // '공통' = 교과
+  track: CourseTrack; // 목표 학교 | '공통'(교과) | '전체'(모든 학교의 특화)
   subject: Subject;
   type: CourseType;
   start: YM;
@@ -148,20 +158,33 @@ export const TRACK_COURSES: Course[] = [
   { id: 'yj_hs_math_review', name: '고등수학 총정리', track: '영재학교', subject: '수학', type: '고등선행',
     start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '토', start: '10:00', end: '13:00' }] },
   // 영재학교 · 과학
-  // 천체·유전 특강은 각 2달로 분리
-  { id: 'yj_astro', name: '천체 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 8 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
-  { id: 'yj_genetics', name: '유전 특강', track: '영재학교', subject: '과학', type: '영재학교입시',
-    start: { grade: '중2', month: 10 }, end: { grade: '중2', month: 11 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
   { id: 'yj_mid_adv_sci', name: '중등심화과학', track: '영재학교', subject: '과학', type: '영재학교입시',
     start: { grade: '중2', month: 12 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '금', start: '18:00', end: '20:00' }] },
   { id: 'yj_final_sci', name: '영재학교 파이널 과학', track: '영재학교', subject: '과학', type: '영재학교입시',
     start: { grade: '중3', month: 3 }, end: { grade: '중3', month: 6 }, schedule: [{ day: '토', start: '14:00', end: '17:00' }] },
-  { id: 'yj_phys_chem_review', name: '물리학/화학 총정리', track: '영재학교', subject: '과학', type: '고등선행',
-    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '일', start: '10:00', end: '13:00' }] },
   // 영재학교 · 면접 (중3 7월, 특화 면접 레인)
   { id: 'yj_final_interview', name: '영재학교 파이널 면접', track: '영재학교', subject: '면접', type: '영재학교입시',
     start: { grade: '중3', month: 7 }, end: { grade: '중3', month: 7 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }, { day: '목', start: '18:00', end: '20:00' }] },
+
+  // ── 모든 학교 공통 특화('전체'): 기본 로드맵에는 없고 '추가 과목'(특화 수학/특화 과학)에서 끌어다 넣는다 ──
+  // 특화 수학
+  { id: 'all_chang2', name: '창의력 수학 2단계', track: '전체', subject: '수학', type: '영재학교입시',
+    start: { grade: '중2', month: 3 }, end: { grade: '중2', month: 8 }, schedule: defaultScheduleFor('수학', '월수', '18:00') },
+  { id: 'all_inquiry_math', name: '탐구력 수학', track: '전체', subject: '수학', type: '과학고입시',
+    start: { grade: '중2', month: 9 }, end: { grade: '중2', month: 2 }, schedule: defaultScheduleFor('수학', '화목', '18:00') },
+  { id: 'all_adv_math1', name: '심화 수학 1', track: '전체', subject: '수학', type: '영재학교입시',
+    start: { grade: '중2', month: 3 }, end: { grade: '중2', month: 6 }, schedule: defaultScheduleFor('수학', '월수', '19:30') },
+  { id: 'all_adv_math2', name: '심화 수학 2', track: '전체', subject: '수학', type: '영재학교입시',
+    start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 10 }, schedule: defaultScheduleFor('수학', '월수', '19:30') },
+  { id: 'all_adv_math3', name: '심화 수학 3', track: '전체', subject: '수학', type: '영재학교입시',
+    start: { grade: '중2', month: 11 }, end: { grade: '중2', month: 2 }, schedule: defaultScheduleFor('수학', '월수', '19:30') },
+  // 특화 과학 (천체·유전 특강은 각 2달, 물리화학 사고력 특강 3달)
+  { id: 'yj_astro', name: '천체 특강', track: '전체', subject: '과학', type: '영재학교입시',
+    start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 8 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
+  { id: 'yj_genetics', name: '유전 특강', track: '전체', subject: '과학', type: '영재학교입시',
+    start: { grade: '중2', month: 10 }, end: { grade: '중2', month: 11 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
+  { id: 'yj_phys_chem_review', name: '물리화학 사고력 특강', track: '전체', subject: '과학', type: '영재학교입시',
+    start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '일', start: '10:00', end: '13:00' }] },
   // 과학고 · 수학
   { id: 'sg_chang1', name: '창의수학 1단계', track: '과학고', subject: '수학', type: '과학고입시',
     start: { grade: '중2', month: 6 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '월', start: '17:00', end: '19:00' }] },
@@ -218,6 +241,7 @@ export function defaultHiddenIds(courses: Course[]): string[] {
   const last = MATH_GYO_SEQUENCE.indexOf(MATH_GYO_DEFAULT_LAST);
   return courses
     .filter((c) => {
+      if (c.track === '전체') return true; // 모든 학교 공통 특화(심화 수학·특강)는 처음엔 접어 둠 → 추가 과목에서 끌어다 넣음
       if (c.track !== '공통' || c.subject !== '수학') return false;
       const lane = c.lane ?? '교과';
       if (lane !== '교과') return true; // 기본심화·심화 벌은 전부 접어 둠(+로 레인을 열고 끌어다 넣음)
