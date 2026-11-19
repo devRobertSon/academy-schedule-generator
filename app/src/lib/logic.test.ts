@@ -78,9 +78,12 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
 });
 
 describe('남은 과목 — 중1 6월 영재학교(전 과정 남음)', () => {
-  it('영재학교 13개 과정(KMO 4분할·천체/유전 분리·파이널 면접 포함)이 모두 남는다', () => {
+  it('영재학교 과정 + 모든 학교 공통(전체) 특화가 모두 남는다', () => {
     const atIdx = nowIndex('중1', 6);
-    expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(13);
+    const expected = courses.filter((c) => c.track === '영재학교' || c.track === '전체').length;
+    expect(expected).toBe(18); // 영재학교 10 + 전체 8(창의력 수학 2단계·탐구력 수학·심화 수학 1~3·천체·유전·물리화학 사고력 특강)
+    expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(expected);
+    expect(remainingCourses(courses, '과학고', atIdx).map((e) => e.course.name)).toContain('심화 수학 1'); // 전체는 어느 학교에서도
   });
   it('파이널 수학·과학·KMO는 중3 6월에 끝나고, 파이널 면접은 중3 7월 한 달', () => {
     for (const id of ['yj_final_math', 'yj_final_sci', 'yj_kmo_algebra', 'yj_kmo_geometry', 'yj_kmo_number', 'yj_kmo_combi']) {

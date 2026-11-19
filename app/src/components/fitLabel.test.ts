@@ -8,7 +8,7 @@ describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 �
   it('교과 레인에서는 대수·미적분Ⅰ·확률과 통계·미적분Ⅱ·기하가 접힌다', () => {
     const cs = defaultStore().courses;
     const hidden = defaultHiddenIds(cs).map((id) => cs.find((c) => c.id === id)!);
-    const gyoNames = hidden.filter((c) => (c.lane ?? '교과') === '교과').map((c) => c.name);
+    const gyoNames = hidden.filter((c) => c.track === '공통' && (c.lane ?? '교과') === '교과').map((c) => c.name);
     expect(gyoNames).toEqual(['대수', '미적분Ⅰ', '확률과 통계', '미적분Ⅱ', '기하']);
   });
   it('기본심화·심화 레인의 13과목은 모두 접혀 있다(+로 레인을 열고 끌어다 넣음)', () => {
@@ -19,6 +19,17 @@ describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 �
     expect(basic.length).toBe(13);
     expect(deep.length).toBe(13);
     expect([...basic, ...deep].every((c) => hidden.has(c.id))).toBe(true);
+  });
+  it('모든 학교 공통(전체) 특화 과정은 처음엔 전부 접혀 있다(추가 과목에서 끌어다 넣음)', () => {
+    const cs = defaultStore().courses;
+    const hidden = new Set(defaultHiddenIds(cs));
+    const all = cs.filter((c) => c.track === '전체');
+    expect(all.map((c) => c.name)).toEqual([
+      '창의력 수학 2단계', '탐구력 수학', '심화 수학 1', '심화 수학 2', '심화 수학 3', '천체 특강', '유전 특강', '물리화학 사고력 특강',
+    ]);
+    expect(all.every((c) => hidden.has(c.id))).toBe(true);
+    // 영재학교 기본 로드맵 과정은 접히지 않는다
+    expect(cs.filter((c) => c.track === '영재학교').some((c) => hidden.has(c.id))).toBe(false);
   });
   it('기본 수업 시간: 수학 1시간 30분 × 주 2회, 과학 2시간 30분 × 주 1회(토)', () => {
     const cs = defaultStore().courses;

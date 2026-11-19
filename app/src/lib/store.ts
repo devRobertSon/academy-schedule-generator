@@ -7,7 +7,7 @@ export interface StoreData {
   plans: Record<Track, TrackPlan>;
 }
 
-const KEY = 'asg.store.v7'; // v7: 수학 교과 3레인(교과/기본심화/심화) 벌 추가, 수학 1.5h×주2회·과학 2.5h×주1회 기본 시간 (v6: 선생님 이름 제거)
+const KEY = 'asg.store.v8'; // v8: '전체' 특화(창의력 수학 2단계·탐구력 수학·심화 수학 1~3·천체/유전/물리화학 사고력 특강) 추가 (v7: 수학 3레인)
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };

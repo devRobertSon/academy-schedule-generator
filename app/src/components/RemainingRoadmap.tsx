@@ -11,6 +11,7 @@ import {
   TrackPlan,
   courseColor,
   endPos,
+  forTrack,
   gmIndex,
   gradeOfIndex,
   mathLaneOf,
@@ -219,7 +220,8 @@ export default function RemainingRoadmap({
 
   // 가로축 끝: 학교별 '로드맵 표시 종료'(예: 영재학교 중3 11월) 없으면 중3 2월
   const axisEnd = plan.roadmapEnd ? Math.min(59, gmIndex(plan.roadmapEnd.grade, plan.roadmapEnd.month)) : 59;
-  const axisStart = Math.min(atIdx, axisEnd);
+  // 가로축 시작: 중1 3월부터(중2·중3 학생도 중1부터 보이게). 초등 학생은 오늘부터
+  const axisStart = Math.min(atIdx, gmIndex('중1', 3), axisEnd);
   const cols = Math.max(1, axisEnd - axisStart + 1);
   const chartW = LABEL_W + cols * COL_W;
   const xOf = (pos: number) => LABEL_W + (pos - axisStart) * COL_W;
@@ -299,7 +301,7 @@ export default function RemainingRoadmap({
         return laneIdx > 0 || seq === -1 || seq >= mathCurrent;
       }
       if (c.track === '공통') return seq === -1 || seq >= sciCurrent;
-      return c.track === track;
+      return forTrack(c, track); // 목표 학교 과정 + 모든 학교 공통('전체') 특화
     })
     .sort((a, b) => {
       const ga = groupOf(a.c).order;
