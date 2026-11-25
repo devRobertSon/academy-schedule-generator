@@ -126,6 +126,9 @@ interface Props {
   /** 시간표에서 세션을 따로 움직이기로 한 교과 수학 과정 id(팝업의 '세션 함께 움직이기' 스위치) */
   unlinked: string[];
   onUnlinkedChange: (courseId: string, unlinked: boolean) => void;
+  /** 이미 지난 진도지만 다시 듣기로 로드맵에 넣은 교과 과정 id(학생별) */
+  forced: string[];
+  onForcedChange: (courseId: string, forced: boolean) => void;
 }
 
 interface Bar {
@@ -198,6 +201,8 @@ export default function RemainingRoadmap({
   onMathLaneCountChange,
   unlinked,
   onUnlinkedChange,
+  forced,
+  onForcedChange,
 }: Props) {
   const [hcOpen, setHcOpen] = useState(false); // '추가 과목' 펼침
   // 추가 과목 칩을 로드맵으로 끌어다 넣기(포인터 기반)
@@ -278,12 +283,15 @@ export default function RemainingRoadmap({
   const mathLanes = MATH_LANES.slice(0, visibleLaneCount).map((lane) => ({
     lane,
     label: MATH_LANE_LABELS[lane],
-    stack: stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts, lane).map(toGyoBar)),
+    stack: stack(gyoLaneLayout(courses, '수학', mathCurrent, atIdx, shifts, lane, forced).map(toGyoBar)),
   }));
-  const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts).map(toGyoBar));
+  const sciLane = stack(gyoLaneLayout(courses, '과학', sciCurrent, atIdx, shifts, undefined, forced).map(toGyoBar));
 
-  // 추가 과목: 이 학생에게 의미 있는 것만. 교과 레인은 지난 진도 제외, 기본심화·심화 레인은 (열려 있으면) 중등~고등 전부,
-  // 특화는 목표 학교 것만. 레인/과목별로 묶어서 보여준다.
+  // 추가 과목 후보:
+  //  (A) 접어 둔 과정(hiddenCourses) — 교과는 진도와 무관하게 전부(지난 진도도 다시 듣기 가능), 기본심화·심화는 레인이 열려 있을 때만,
+  //      특화는 목표 학교 것 + 모든 학교 공통('전체')
+  //  (B) 로드맵에 안 보이는 지난 진도의 교과 과정(이미 완료한 중2-1학기 수학 등) — '다시 듣기'로 넣을 수 있게
+  // 레인/과목별로 묶어서 보여준다.
   const groupOf = (c: Course): { key: string; label: string; order: number } => {
     if (c.track === '공통' && c.subject === '수학') {
       const lane = mathLaneOf(c);
@@ -292,29 +300,42 @@ export default function RemainingRoadmap({
     if (c.track === '공통') return { key: 's', label: '과학 교과', order: 10 };
     return { key: `t-${c.subject}`, label: `특화 ${c.subject}`, order: 20 + SPEC_SUBJECTS.indexOf(c.subject) };
   };
-  const hiddenList = hiddenCourses
-    .map((c) => ({ c, seq: gyoSeqIndex(c) }))
-    .filter(({ c, seq }) => {
-      if (c.track === '공통' && c.subject === '수학') {
-        const laneIdx = MATH_LANES.indexOf(mathLaneOf(c));
-        if (laneIdx >= visibleLaneCount) return false; // 아직 열지 않은 레인
-        return laneIdx > 0 || seq === -1 || seq >= mathCurrent;
-      }
-      if (c.track === '공통') return seq === -1 || seq >= sciCurrent;
-      return forTrack(c, track); // 목표 학교 과정 + 모든 학교 공통('전체') 특화
-    })
+  interface Addable {
+    c: Course;
+    seq: number;
+    /** 지난 진도의 교과 과정 → 넣으면 '다시 듣기'(forced) */
+    retake: boolean;
+  }
+  const isPastGyo = (c: Course, seq: number) => {
+    if (c.track !== '공통' || seq === -1) return false;
+    if (c.subject === '수학') return mathLaneOf(c) === '교과' && seq < mathCurrent;
+    return seq < sciCurrent;
+  };
+  const hiddenIds = new Set(hiddenCourses.map((c) => c.id));
+  const addable: Addable[] = [
+    ...hiddenCourses.map((c) => ({ c, seq: gyoSeqIndex(c) })).filter(({ c }) => {
+      if (c.track === '공통' && c.subject === '수학') return MATH_LANES.indexOf(mathLaneOf(c)) < visibleLaneCount; // 아직 열지 않은 레인 제외
+      if (c.track === '공통') return true;
+      return forTrack(c, track);
+    }),
+    ...courses
+      .filter((c) => !hiddenIds.has(c.id) && !forced.includes(c.id))
+      .map((c) => ({ c, seq: gyoSeqIndex(c) }))
+      .filter(({ c, seq }) => isPastGyo(c, seq)),
+  ]
+    .map(({ c, seq }) => ({ c, seq, retake: isPastGyo(c, seq) }))
     .sort((a, b) => {
       const ga = groupOf(a.c).order;
       const gb = groupOf(b.c).order;
       if (ga !== gb) return ga - gb;
       return (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name);
-    })
-    .map(({ c }) => c);
-  const hiddenGroups = hiddenList.reduce<{ key: string; label: string; items: Course[] }[]>((acc, c) => {
-    const g = groupOf(c);
+    });
+  const hiddenList = addable.map((a) => a.c);
+  const hiddenGroups = addable.reduce<{ key: string; label: string; items: Addable[] }[]>((acc, a) => {
+    const g = groupOf(a.c);
     const last = acc[acc.length - 1];
-    if (last && last.key === g.key) last.items.push(c);
-    else acc.push({ key: g.key, label: g.label, items: [c] });
+    if (last && last.key === g.key) last.items.push(a);
+    else acc.push({ key: g.key, label: g.label, items: [a] });
     return acc;
   }, []);
 
@@ -341,17 +362,22 @@ export default function RemainingRoadmap({
     ...sciLane.placed.map((b) => ({ b, top: sciLaneTop })),
   ];
 
-  /** 접힌 과목을 로드맵에 넣되, 지정한 위치(0.5월)에서 시작하도록 이 학생의 shift를 맞춘다 */
+  /** 접힌 과목(또는 이미 지난 진도의 교과 과목)을 로드맵에 넣되, 지정한 위치(0.5월)에서 시작하도록 이 학생의 shift를 맞춘다 */
   const addAt = (id: string, pos?: number) => {
-    const course = hiddenCourses.find((c) => c.id === id);
-    onShow(id);
-    if (!course || pos === undefined) return;
+    const item = addable.find((a) => a.c.id === id);
+    if (!item) return;
+    const course = item.c;
+    const wasHidden = hiddenCourses.some((c) => c.id === id);
+    if (wasHidden) onShow(id);
+    if (item.retake) onForcedChange(id, true); // 지난 진도 다시 듣기
+    if (pos === undefined) return;
     let base: number;
     let dur: number;
     if (course.track === '공통') {
       const lane = course.subject === '수학' ? mathLaneOf(course) : undefined;
       const cur = course.subject === '수학' ? mathCurrent : sciCurrent;
-      const entry = gyoLaneLayout([...courses, course], course.subject, cur, atIdx, shifts, lane).find((e) => e.course.id === id);
+      const list = wasHidden ? [...courses, course] : courses;
+      const entry = gyoLaneLayout(list, course.subject, cur, atIdx, shifts, lane, [...forced, id]).find((e) => e.course.id === id);
       if (!entry) return;
       base = entry.startIdx - entry.shift;
       dur = entry.endIdx + 0.5 - entry.startIdx;
@@ -909,32 +935,40 @@ export default function RemainingRoadmap({
                 <div className="hc-group" key={g.key}>
                   <span className="hc-group-label">{g.label}</span>
                   <div className="hc-list">
-                    {g.items.map((c) => {
+                    {g.items.map(({ c, retake }) => {
                       const col = courseColor(c);
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          className="hc-chip"
+                          className={`hc-chip${retake ? ' retake' : ''}`}
                           style={{ background: col.fill, color: col.text, touchAction: 'none' }}
-                          title={`${c.name} — 클릭: 순서대로 추가 · 끌어서 로드맵에 놓기: 그 달부터`}
+                          title={
+                            retake
+                              ? `${c.name} — 이미 지난 진도지만 다시 듣기로 로드맵에 넣기 (클릭: 순서대로 · 끌어서 놓기: 그 달부터)`
+                              : `${c.name} — 클릭: 순서대로 추가 · 끌어서 로드맵에 놓기: 그 달부터`
+                          }
                           onPointerDown={(ev) => startChipDrag(ev, c.id)}
                         >
-                          + {c.name}
+                          {retake ? '↻ ' : '+ '}
+                          {c.name}
+                          {retake ? <small> 다시</small> : null}
                         </button>
                       );
                     })}
                   </div>
                 </div>
               ))}
-              <small className="muted hc-hint">클릭하면 순서대로 들어가고, 로드맵 위로 끌어다 놓으면 그 달부터 시작합니다.</small>
+              <small className="muted hc-hint">
+                클릭하면 순서대로 들어가고, 로드맵 위로 끌어다 놓으면 그 달부터 시작합니다. ↻ 표시는 이미 지난 진도를 다시 듣는 과목입니다.
+              </small>
             </div>
           )}
         </div>
       )}
       {chipDrag?.moved &&
         (() => {
-          const c = hiddenCourses.find((x) => x.id === chipDrag.id);
+          const c = addable.find((x) => x.c.id === chipDrag.id)?.c;
           if (!c) return null;
           const col = courseColor(c);
           return (

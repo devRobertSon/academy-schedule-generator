@@ -19,7 +19,7 @@ import {
   ymLabel,
 } from './data/roadmap';
 import { journeySummary, nowIndex, remainingCourses } from './lib/logic';
-import { StoreData, loadStore, mergePlans, saveStore } from './lib/store';
+import { StoreData, defaultStore, loadStore, mergePlans, saveStore } from './lib/store';
 
 type Page = 'consult' | 'admin';
 
@@ -49,6 +49,8 @@ interface SavedFile {
     mathLaneCount?: number;
     /** 시간표에서 세션을 따로 움직이기로 한 교과 수학 과정 id */
     unlinked?: string[];
+    /** 진도와 무관하게 다시 듣기로 로드맵에 넣은 교과 과정 id */
+    forced?: string[];
     viewIdx?: number; // (구버전 파일 호환용, 지금은 쓰지 않음)
   };
 }
@@ -82,12 +84,35 @@ export default function App() {
   const [unlinked, setUnlinked] = useState<string[]>([]);
   const setUnlinkedFor = (id: string, v: boolean) =>
     setUnlinked((u) => (v ? (u.includes(id) ? u : [...u, id]) : u.filter((x) => x !== id)));
+  // 이미 지난 진도지만 다시 듣기로 로드맵에 넣은 교과 과정(예: 중2까지 마쳤어도 중2-1학기 수학 다시)
+  const [forced, setForced] = useState<string[]>([]);
+  const setForcedFor = (id: string, v: boolean) =>
+    setForced((f) => (v ? (f.includes(id) ? f : [...f, id]) : f.filter((x) => x !== id)));
+  /** 초기화: 이 학생의 상담 상태(이동·숨김·레인·분리·다시 듣기)와 과정·여정 데이터를 기본값으로 */
+  const resetAll = () => {
+    if (
+      !confirm(
+        '초기화할까요?\n\n· 학생 상담 상태(블록 이동, 추가/제거, 레인, 세션 분리, 다시 듣기)를 지웁니다\n· 과정·수업 시간·입시 단계 데이터를 앱 기본값으로 되돌립니다 (관리 탭에서 고친 내용도 지워집니다)\n\n저장한 JSON 파일은 그대로 남습니다.'
+      )
+    )
+      return;
+    const def = defaultStore();
+    setStore(def);
+    setInfo(DEFAULT_CONSULT);
+    setTrack('영재학교');
+    setShifts({});
+    setSlotOverrides({});
+    setHidden(defaultHiddenIds(def.courses));
+    setMathLaneCount(1);
+    setUnlinked([]);
+    setForced([]);
+  };
   const [logoOk, setLogoOk] = useState(true);
 
   const atIdx = useMemo(() => nowIndex(info.grade, info.month), [info.grade, info.month]);
   const progress = useMemo(
-    () => ({ mathCurrent: info.mathIdx + 1, sciCurrent: info.sciIdx + 1 }),
-    [info.mathIdx, info.sciIdx]
+    () => ({ mathCurrent: info.mathIdx + 1, sciCurrent: info.sciIdx + 1, forced }),
+    [info.mathIdx, info.sciIdx, forced]
   );
   const visibleCourses = useMemo(() => store.courses.filter((c) => !hidden.includes(c.id)), [store.courses, hidden]);
   const plan = store.plans[track];
@@ -112,7 +137,7 @@ export default function App() {
       version: 1,
       courses: store.courses,
       plans: store.plans,
-      consult: { info, track, shifts, slotOverrides, hidden, mathLaneCount, unlinked },
+      consult: { info, track, shifts, slotOverrides, hidden, mathLaneCount, unlinked, forced },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -137,6 +162,7 @@ export default function App() {
         setHidden(c.hidden ?? []);
         setMathLaneCount(c.mathLaneCount ?? 1);
         setUnlinked(c.unlinked ?? []);
+        setForced(c.forced ?? []);
       }
       alert('불러왔습니다.');
     } catch (e) {
@@ -240,6 +266,9 @@ export default function App() {
                 💾 저장
               </button>
               <button onClick={() => fileRef.current?.click()}>📂 불러오기</button>
+              <button onClick={resetAll} title="학생 상담 상태와 과정 데이터를 기본값으로">
+                ↺ 초기화
+              </button>
               <ExportBar targetRef={exportRef} />
             </div>
           </section>
@@ -283,9 +312,14 @@ export default function App() {
                     )
                   }
                   onCourseChange={(course) => updateCourses((cs) => cs.map((c) => (c.id === course.id ? course : c)))}
-                  onHide={(id) => setHidden((h) => (h.includes(id) ? h : [...h, id]))}
+                  onHide={(id) => {
+                    setHidden((h) => (h.includes(id) ? h : [...h, id]));
+                    setForcedFor(id, false); // 다시 듣기로 넣었던 과정을 빼면 다시 듣기도 해제
+                  }}
                   hiddenCourses={store.courses.filter((c) => hidden.includes(c.id))}
                   onShow={(id) => setHidden((h) => h.filter((x) => x !== id))}
+                  forced={forced}
+                  onForcedChange={setForcedFor}
                   mathLaneCount={mathLaneCount}
                   onMathLaneCountChange={setMathLaneCount}
                   unlinked={unlinked}
@@ -307,7 +341,18 @@ export default function App() {
                 atIdx={atIdx}
                 shifts={shifts}
                 slotOverrides={slotOverrides}
-                onSlotOverrideChange={(key, slot) => setSlotOverrides((s) => ({ ...s, [key]: slot }))}
+                onSessionMove={(key, courseId, sessionIdx, slot) => {
+                  // 드래그로 옮긴 요일·시간 → 과정의 수업 시간(관리 탭·상세 정보)에 반영
+                  updateCourses((cs) =>
+                    cs.map((c) => (c.id === courseId ? { ...c, schedule: c.schedule.map((s, i) => (i === sessionIdx ? { ...slot } : s)) } : c))
+                  );
+                  // 예전 방식의 학생별 이동값이 남아 있으면 지워서 과정 데이터가 그대로 보이게
+                  setSlotOverrides((s) => {
+                    if (!(key in s)) return s;
+                    const { [key]: _drop, ...rest } = s;
+                    return rest;
+                  });
+                }}
                 onSessionResize={(key, courseId, sessionIdx, slot) => {
                   // 시간 늘리기/줄이기 → 과정의 수업 시간(관리 탭 데이터)에 반영
                   updateCourses((cs) =>

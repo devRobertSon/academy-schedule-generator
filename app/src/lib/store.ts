@@ -7,7 +7,7 @@ export interface StoreData {
   plans: Record<Track, TrackPlan>;
 }
 
-const KEY = 'asg.store.v8'; // v8: '전체' 특화(창의력 수학 2단계·탐구력 수학·심화 수학 1~3·천체/유전/물리화학 사고력 특강) 추가 (v7: 수학 3레인)
+const KEY = 'asg.store.v9'; // v9: 창의력 수학 1단계 이름, 학습 트레이닝 1~3 추가 (v8: '전체' 특화)
 
 function cloneCourse(c: Course): Course {
   return { ...c, schedule: c.schedule.map((s) => ({ ...s })), start: { ...c.start }, end: { ...c.end } };

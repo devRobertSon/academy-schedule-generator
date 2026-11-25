@@ -63,7 +63,7 @@ describe('남은 과목(remainingCourses) — 중2 9월 영재학교', () => {
 
   it('완료된 창의수학 1단계·천체 특강은 제외되고, 예정인 유전 특강은 남는다', () => {
     expect(courseStatus(byId('yj_chang1'), atIdx)).toBe('완료');
-    expect(names).not.toContain('창의수학 1단계');
+    expect(names).not.toContain('창의력 수학 1단계');
     expect(names).not.toContain('천체 특강'); // 중2 7~8월 → 완료
     expect(courseStatus(byId('yj_genetics'), atIdx)).toBe('예정'); // 중2 10~11월
     expect(names).toContain('유전 특강');
@@ -81,7 +81,7 @@ describe('남은 과목 — 중1 6월 영재학교(전 과정 남음)', () => {
   it('영재학교 과정 + 모든 학교 공통(전체) 특화가 모두 남는다', () => {
     const atIdx = nowIndex('중1', 6);
     const expected = courses.filter((c) => c.track === '영재학교' || c.track === '전체').length;
-    expect(expected).toBe(18); // 영재학교 10 + 전체 8(창의력 수학 2단계·탐구력 수학·심화 수학 1~3·천체·유전·물리화학 사고력 특강)
+    expect(expected).toBe(21); // 영재학교 10 + 전체 11(창의력 수학 2단계·탐구력 수학·심화 수학 1~3·학습 트레이닝 1~3·천체·유전·물리화학 사고력 특강)
     expect(remainingCourses(courses, '영재학교', atIdx).length).toBe(expected);
     expect(remainingCourses(courses, '과학고', atIdx).map((e) => e.course.name)).toContain('심화 수학 1'); // 전체는 어느 학교에서도
   });
@@ -159,6 +159,19 @@ describe('교과 블록 배치(gyoLaneLayout) — 중2 9월', () => {
     expect(basic.every((e) => e.course.lane === '기본심화')).toBe(true);
     const all = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, {});
     expect(all.length).toBe(gyo.length + deep.length + basic.length);
+  });
+  it('다시 듣기(forced)로 넣은 지난 진도 과목은 교과 레인 맨 앞(오늘)부터 들어간다', () => {
+    const retake = courses.find((c) => c.id === 'gyo_math_2')!; // 중2-1학기 (진도 중3-2학기 완료보다 앞)
+    expect(retake.name).toBe('중2-1학기');
+    const without = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, {}, '교과');
+    expect(without.map((e) => e.course.id)).not.toContain('gyo_math_2');
+    const withF = gyoLaneLayout(courses, '수학', PROGRESS.mathCurrent, atIdx, {}, '교과', ['gyo_math_2']);
+    expect(withF[0].course.id).toBe('gyo_math_2');
+    expect(withF[0].startIdx).toBe(42);
+    expect(withF[1].course.name).toBe('공통수학1'); // 그 뒤로 밀려 일렬
+    // 시간표에도 들어간다
+    const tt = buildMonthlyTimetable(courses, '영재학교', atIdx, atIdx, {}, {}, { ...PROGRESS, forced: ['gyo_math_2'] });
+    expect(tt.blocks.some((b) => b.courseId === 'gyo_math_2')).toBe(true);
   });
   it('과학을 아직 안 한 학생(완료 = 없음, current 0)은 중1-1학기부터 오늘에서 시작', () => {
     const lane = gyoLaneLayout(courses, '과학', 0, atIdx, {});

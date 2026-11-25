@@ -38,7 +38,8 @@ interface Props {
   atIdx: number;
   shifts: Record<string, number>;
   slotOverrides: Record<string, TimeSlot>;
-  onSlotOverrideChange: (sessionKey: string, slot: TimeSlot) => void;
+  /** 블록을 드래그해 요일/시간을 옮김 → 과정의 수업 시간(관리 탭·상세 정보)에 반영 */
+  onSessionMove: (sessionKey: string, courseId: string, sessionIdx: number, slot: TimeSlot) => void;
   /** 블록을 선택한 뒤 위/아래 가장자리를 끌어 시간을 늘리고 줄임 → 과정의 수업 시간에 반영 */
   onSessionResize: (sessionKey: string, courseId: string, sessionIdx: number, slot: TimeSlot) => void;
   /** 선택된 블록을 다시 클릭하면 뜨는 편집 팝업(요일·시간·선생님)의 저장 → 과정 데이터에 반영 */
@@ -212,7 +213,7 @@ export default function MonthlyTimetable({
   atIdx,
   shifts,
   slotOverrides,
-  onSlotOverrideChange,
+  onSessionMove,
   onSessionResize,
   onCourseChange,
   onHideCourse,
@@ -317,8 +318,9 @@ export default function MonthlyTimetable({
     const newStart = slotToMin(Number(m[2]));
     const block = tt.blocks.find((b) => b.key === String(active.id));
     if (!block) return;
+    if (block.courseId === undefined || block.sessionIdx === undefined) return;
     const moved = movedSlot(block, newDayIdx, newStart);
-    onSlotOverrideChange(block.key, moved);
+    onSessionMove(block.key, block.courseId, block.sessionIdx, moved);
 
     // 교과 수학: Shift 없이 옮기면 짝 세션(월·수 / 화·목)도 같은 만큼 같이 이동.
     // Shift+드래그면 이 블록만 옮기고, 그 과정은 '분리됨'으로 표시한다.
@@ -332,8 +334,8 @@ export default function MonthlyTimetable({
     const dDay = DAYS.indexOf(moved.day) - DAYS.indexOf(block.slot.day);
     const dMin = toMin(moved.start) - toMin(block.slot.start);
     for (const sib of tt.blocks) {
-      if (sib.courseId !== block.courseId || sib.key === block.key) continue;
-      onSlotOverrideChange(sib.key, movedSlot(sib, DAYS.indexOf(sib.slot.day) + dDay, toMin(sib.slot.start) + dMin));
+      if (sib.courseId !== block.courseId || sib.key === block.key || sib.sessionIdx === undefined) continue;
+      onSessionMove(sib.key, sib.courseId!, sib.sessionIdx, movedSlot(sib, DAYS.indexOf(sib.slot.day) + dDay, toMin(sib.slot.start) + dMin));
     }
   };
 

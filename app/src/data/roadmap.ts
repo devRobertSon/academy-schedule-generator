@@ -142,7 +142,7 @@ export const mathLaneOf = (c: { lane?: MathLane }): MathLane => c.lane ?? '교�
 /** 트랙별 특화/면접/통합과학 과정 (월 단위, 일정 고정) */
 export const TRACK_COURSES: Course[] = [
   // 영재학교 · 수학
-  { id: 'yj_chang1', name: '창의수학 1단계', track: '영재학교', subject: '수학', type: '영재학교입시',
+  { id: 'yj_chang1', name: '창의력 수학 1단계', track: '영재학교', subject: '수학', type: '영재학교입시',
     start: { grade: '중1', month: 6 }, end: { grade: '중1', month: 2 }, schedule: [{ day: '월', start: '18:00', end: '20:00' }] },
   // KMO는 대수·기하·정수·조합 4과목으로 구성
   { id: 'yj_kmo_algebra', name: 'KMO 대수', track: '영재학교', subject: '수학', type: '영재학교입시',
@@ -178,6 +178,13 @@ export const TRACK_COURSES: Course[] = [
     start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 10 }, schedule: defaultScheduleFor('수학', '월수', '19:30') },
   { id: 'all_adv_math3', name: '심화 수학 3', track: '전체', subject: '수학', type: '영재학교입시',
     start: { grade: '중2', month: 11 }, end: { grade: '중2', month: 2 }, schedule: defaultScheduleFor('수학', '월수', '19:30') },
+  // 학습 트레이닝 1·2·3 (중1, 4달씩)
+  { id: 'all_train1', name: '학습 트레이닝 1', track: '전체', subject: '수학', type: '중등선행',
+    start: { grade: '중1', month: 3 }, end: { grade: '중1', month: 6 }, schedule: defaultScheduleFor('수학', '화목', '18:00') },
+  { id: 'all_train2', name: '학습 트레이닝 2', track: '전체', subject: '수학', type: '중등선행',
+    start: { grade: '중1', month: 7 }, end: { grade: '중1', month: 10 }, schedule: defaultScheduleFor('수학', '화목', '18:00') },
+  { id: 'all_train3', name: '학습 트레이닝 3', track: '전체', subject: '수학', type: '중등선행',
+    start: { grade: '중1', month: 11 }, end: { grade: '중1', month: 2 }, schedule: defaultScheduleFor('수학', '화목', '18:00') },
   // 특화 과학 (천체·유전 특강은 각 2달, 물리화학 사고력 특강 3달)
   { id: 'yj_astro', name: '천체 특강', track: '전체', subject: '과학', type: '영재학교입시',
     start: { grade: '중2', month: 7 }, end: { grade: '중2', month: 8 }, schedule: [{ day: '수', start: '18:00', end: '20:00' }] },
@@ -186,9 +193,9 @@ export const TRACK_COURSES: Course[] = [
   { id: 'yj_phys_chem_review', name: '물리화학 사고력 특강', track: '전체', subject: '과학', type: '영재학교입시',
     start: { grade: '중3', month: 9 }, end: { grade: '중3', month: 11 }, schedule: [{ day: '일', start: '10:00', end: '13:00' }] },
   // 과학고 · 수학
-  { id: 'sg_chang1', name: '창의수학 1단계', track: '과학고', subject: '수학', type: '과학고입시',
+  { id: 'sg_chang1', name: '창의력 수학 1단계', track: '과학고', subject: '수학', type: '과학고입시',
     start: { grade: '중2', month: 6 }, end: { grade: '중2', month: 2 }, schedule: [{ day: '월', start: '17:00', end: '19:00' }] },
-  { id: 'sg_chang2', name: '창의수학 2단계', track: '과학고', subject: '수학', type: '과학고입시',
+  { id: 'sg_chang2', name: '창의력 수학 2단계', track: '과학고', subject: '수학', type: '과학고입시',
     start: { grade: '중3', month: 3 }, end: { grade: '중3', month: 8 }, schedule: [{ day: '목', start: '17:00', end: '20:00' }] },
   { id: 'sg_hs_math_info_review', name: '고등수학 및 정보 총정리', track: '과학고', subject: '수학', type: '과학고내신',
     start: { grade: '중3', month: 12 }, end: { grade: '중3', month: 2 }, schedule: [{ day: '토', start: '15:00', end: '18:00' }] },
@@ -320,7 +327,7 @@ const MATH_TYPES: CourseType[] = MATH_GYO_SEQUENCE.map((_, i) => (i < MATH_GYO_A
  * 기본심화·심화 벌은 처음에 접혀 있고(추가 과목), + 버튼으로 레인을 열어 끌어다 넣는다.
  */
 export const GYO_COURSES: Course[] = [
-  // 기본 시각은 특화 과정(월 18시 창의수학, 화 18시 KMO, 토 오후 특강)과 겹치지 않게 배치
+  // 기본 시각은 특화 과정(월 18시 창의력 수학, 화 18시 KMO, 토 오후 특강)과 겹치지 않게 배치
   ...makeGyoCourses('gyo_math', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '월수', '16:00'), '', '교과'),
   ...makeGyoCourses('gyo_math_b', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '화목', '16:00'), '', '기본심화'),
   ...makeGyoCourses('gyo_math_a', '수학', MATH_GYO_SEQUENCE, MATH_DURS, MATH_TYPES, defaultScheduleFor('수학', '화목', '19:00'), '', '심화'),
@@ -370,7 +377,7 @@ export const TRACK_PLANS: Record<Track, TrackPlan> = {
   과학고: {
     phases: [
       { name: '① 기초·선행', start: ym('초5', 3), end: ym('중2', 5) },
-      { name: '② 창의수학·심화', start: ym('중2', 6), end: ym('중3', 8) },
+      { name: '② 창의력 수학·심화', start: ym('중2', 6), end: ym('중3', 8) },
       { name: '③ 면접 대비', start: ym('중3', 9), end: ym('중3', 11) },
       { name: '④ 입학 준비', start: ym('중3', 12), end: ym('중3', 2) },
     ],
