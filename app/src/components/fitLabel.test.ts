@@ -25,7 +25,9 @@ describe('defaultHiddenIds — 수학 교과는 공통수학2까지만 기본 �
     const hidden = new Set(defaultHiddenIds(cs));
     const all = cs.filter((c) => c.track === '전체');
     expect(all.map((c) => c.name)).toEqual([
-      '창의력 수학 2단계', '탐구력 수학', '심화 수학 1', '심화 수학 2', '심화 수학 3', '천체 특강', '유전 특강', '물리화학 사고력 특강',
+      '창의력 수학 2단계', '탐구력 수학', '심화 수학 1', '심화 수학 2', '심화 수학 3',
+      '학습 트레이닝 1', '학습 트레이닝 2', '학습 트레이닝 3',
+      '천체 특강', '유전 특강', '물리화학 사고력 특강',
     ]);
     expect(all.every((c) => hidden.has(c.id))).toBe(true);
     // 영재학교 기본 로드맵 과정은 접히지 않는다

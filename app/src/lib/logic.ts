@@ -154,10 +154,12 @@ export function gyoSeqIndex(c: Course): number {
   return -1;
 }
 
-/** 학생 진도: 과목별 '현재(첫 미완료) 블록' 인덱스 */
+/** 학생 진도: 과목별 '현재(첫 미완료) 블록' 인덱스 + 진도와 무관하게 다시 듣기로 넣은 교과 과정 id */
 export interface GyoProgress {
   mathCurrent: number;
   sciCurrent: number;
+  /** 이미 지난 진도지만 다시 듣기로 로드맵에 넣은 교과 과정(학생별) */
+  forced?: string[];
 }
 
 export interface LaneEntry {
@@ -179,17 +181,19 @@ export function gyoLaneLayout(
   atIdx: number,
   shifts: Record<string, number>,
   /** 수학은 레인(교과/기본심화/심화)별로 따로 일렬 배치. 생략하면 세 레인을 모두 합쳐 돌려준다 */
-  lane?: MathLane
+  lane?: MathLane,
+  /** 진도와 무관하게 다시 듣기로 넣은 교과 과정 id(학생별) */
+  forced: string[] = []
 ): LaneEntry[] {
   if (subject === '수학' && lane === undefined) {
-    return MATH_LANES.flatMap((l) => gyoLaneLayout(courses, subject, currentIdx, atIdx, shifts, l));
+    return MATH_LANES.flatMap((l) => gyoLaneLayout(courses, subject, currentIdx, atIdx, shifts, l, forced));
   }
   // 기본심화·심화 레인은 학생 진도와 무관하게(중등부터 고등까지) 아무 과목이나 넣을 수 있다
   const byProgress = subject !== '수학' || lane === '교과';
   const list = courses
     .filter((c) => c.track === '공통' && c.subject === subject && (subject !== '수학' || mathLaneOf(c) === lane))
     .map((c) => ({ c, seq: gyoSeqIndex(c) }))
-    .filter((x) => !byProgress || x.seq === -1 || x.seq >= currentIdx)
+    .filter((x) => !byProgress || x.seq === -1 || x.seq >= currentIdx || forced.includes(x.c.id))
     .sort((a, b) => (a.seq === -1 ? 1e9 : a.seq) - (b.seq === -1 ? 1e9 : b.seq) || a.c.name.localeCompare(b.c.name));
   let acc = atIdx;
   return list.map(({ c, seq }) => {
@@ -218,8 +222,8 @@ export function buildMonthlyTimetable(
   progress: GyoProgress
 ): MonthlyTimetable {
   const gyoRange = new Map<string, { startIdx: number; endIdx: number }>();
-  for (const e of gyoLaneLayout(courses, '수학', progress.mathCurrent, atIdx, shifts)) gyoRange.set(e.course.id, e);
-  for (const e of gyoLaneLayout(courses, '과학', progress.sciCurrent, atIdx, shifts)) gyoRange.set(e.course.id, e);
+  for (const e of gyoLaneLayout(courses, '수학', progress.mathCurrent, atIdx, shifts, undefined, progress.forced)) gyoRange.set(e.course.id, e);
+  for (const e of gyoLaneLayout(courses, '과학', progress.sciCurrent, atIdx, shifts, undefined, progress.forced)) gyoRange.set(e.course.id, e);
 
   const blocks: TimetableBlock[] = [];
   for (const c of courses) {
@@ -274,8 +278,8 @@ export function journeySummary(
   const rem = remainingCourses(courses, track, atIdx, shifts);
   const nowSpec = rem.filter((e) => e.status === '진행중').map((e) => e.course.name);
   const gyoNow = [
-    ...gyoLaneLayout(courses, '수학', progress.mathCurrent, atIdx, shifts),
-    ...gyoLaneLayout(courses, '과학', progress.sciCurrent, atIdx, shifts),
+    ...gyoLaneLayout(courses, '수학', progress.mathCurrent, atIdx, shifts, undefined, progress.forced),
+    ...gyoLaneLayout(courses, '과학', progress.sciCurrent, atIdx, shifts, undefined, progress.forced),
   ]
     .filter((e) => e.current)
     .map((e) => e.course.name);
